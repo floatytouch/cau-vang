@@ -1,14 +1,28 @@
 import type { Options, Query, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { EngineSession, NootEvent, ToolBridge, TurnOptions } from '@noot/shared';
 import { isNootEvent } from '@noot/shared';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ClaudeEngineAdapter } from './claude-engine-adapter.js';
+import {
+  ClaudeEngineAdapter,
+  type ClaudeEngineAdapterOptions,
+} from './claude-engine-adapter.js';
 import type { ClaudeQueryFactory } from './claude-query-factory.js';
 import { SessionHandleStore } from './session-handle-store.js';
 
 const SESSION: EngineSession = { sessionId: 'brain-session', history: [] };
-const SOUL_PROMPT = 'N\u1ed1t\u00a0\u2014 soul line one\r\n  trailing spaces  \n\u{1F33F} emoji\n';
+const BASE_SUBPROCESS_ENV: NodeJS.ProcessEnv = {
+  HOME: '/home/noot',
+  PATH: '/usr/bin',
+};
+
+function createAdapter(overrides: Partial<ClaudeEngineAdapterOptions> = {}): ClaudeEngineAdapter {
+  return new ClaudeEngineAdapter({
+    subprocessEnv: BASE_SUBPROCESS_ENV,
+    ...overrides,
+  });
+}
+const SOUL_PROMPT = 'Nốt -- soul line one\r\n  trailing spaces  \n🌿 emoji\n';
 const OPTIONS: TurnOptions = {
   turnId: 'turn-1',
   model: 'claude-sonnet-5',
@@ -86,25 +100,10 @@ const ECHO_TOOLS: ToolBridge = {
 };
 
 describe('ClaudeEngineAdapter options', () => {
-  const saved = { key: process.env.ANTHROPIC_API_KEY, token: process.env.ANTHROPIC_AUTH_TOKEN };
-  afterEach(() => {
-    for (const [name, value] of [
-      ['ANTHROPIC_API_KEY', saved.key],
-      ['ANTHROPIC_AUTH_TOKEN', saved.token],
-    ] as const) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
-  });
-
   it('passes the BrainCore system prompt byte-identical with nothing appended', async () => {
     const fake = replay(INIT, SUCCESS);
     await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
-        SESSION,
-        { text: 'hi' },
-        OPTIONS,
-      ),
+      createAdapter({ queryFactory: fake.factory }).startTurn(SESSION, { text: 'hi' }, OPTIONS),
     );
     const options = fake.calls[0];
     expect(options?.systemPrompt).toBe(SOUL_PROMPT);
@@ -121,26 +120,37 @@ describe('ClaudeEngineAdapter options', () => {
   });
 
   it('starts the CLI without any API credential in its env', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-must-not-leak';
-    process.env.ANTHROPIC_AUTH_TOKEN = 'bearer-must-not-leak';
     const fake = replay(SUCCESS);
     await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
-        SESSION,
-        { text: 'hi' },
-        OPTIONS,
-      ),
+      createAdapter({
+        queryFactory: fake.factory,
+        subprocessEnv: {
+          ...BASE_SUBPROCESS_ENV,
+          ANTHROPIC_API_KEY: 'sk-must-not-leak',
+          ANTHROPIC_AUTH_TOKEN: 'bearer-must-not-leak',
+        },
+      }).startTurn(SESSION, { text: 'hi' }, OPTIONS),
     );
     const env = fake.calls[0]?.env ?? {};
     expect(env).not.toHaveProperty('ANTHROPIC_API_KEY');
     expect(env).not.toHaveProperty('ANTHROPIC_AUTH_TOKEN');
     expect(Object.values(env)).not.toContain('sk-must-not-leak');
+    expect(env.HOME).toBe('/home/noot');
+  });
+
+  it('fails closed when subprocessEnv is missing', () => {
+    expect(
+      () =>
+        new ClaudeEngineAdapter({
+          subprocessEnv: undefined as unknown as NodeJS.ProcessEnv,
+        }),
+    ).toThrow(/subprocessEnv/);
   });
 
   it('registers brain tools as one in-process MCP server', async () => {
     const fake = replay(SUCCESS);
     await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
+      createAdapter({ queryFactory: fake.factory }).startTurn(
         SESSION,
         { text: 'hi' },
         { ...OPTIONS, tools: ECHO_TOOLS },
@@ -153,7 +163,7 @@ describe('ClaudeEngineAdapter options', () => {
 describe('ClaudeEngineAdapter sessions', () => {
   it('learns the Claude session id from init and resumes it next turn', async () => {
     const handles = new SessionHandleStore();
-    const adapter = new ClaudeEngineAdapter({
+    const adapter = createAdapter({
       queryFactory: replay(INIT, SUCCESS).factory,
       sessionHandles: handles,
     });
@@ -161,7 +171,7 @@ describe('ClaudeEngineAdapter sessions', () => {
     expect(handles.claudeSessionIdFor('brain-session')).toBe('claude-uuid');
 
     const second = replay(INIT, SUCCESS);
-    const resumed = new ClaudeEngineAdapter({
+    const resumed = createAdapter({
       queryFactory: second.factory,
       sessionHandles: handles,
     });
@@ -178,7 +188,7 @@ describe('ClaudeEngineAdapter sessions', () => {
       throw new Error('Claude Code returned an error result: No conversation found');
     });
     const events = await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory, sessionHandles: handles }).startTurn(
+      createAdapter({ queryFactory: fake.factory, sessionHandles: handles }).startTurn(
         SESSION,
         { text: 'x' },
         OPTIONS,
@@ -197,7 +207,7 @@ describe('ClaudeEngineAdapter sessions', () => {
       throw new Error('stream died');
     });
     await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory, sessionHandles: handles }).startTurn(
+      createAdapter({ queryFactory: fake.factory, sessionHandles: handles }).startTurn(
         SESSION,
         { text: 'x' },
         OPTIONS,
@@ -213,7 +223,7 @@ describe('ClaudeEngineAdapter failures', () => {
       throw new Error('Claude Code native binary not found');
     };
     const events = await collect(
-      new ClaudeEngineAdapter({ queryFactory: factory }).startTurn(SESSION, { text: 'x' }, OPTIONS),
+      createAdapter({ queryFactory: factory }).startTurn(SESSION, { text: 'x' }, OPTIONS),
     );
     expectWellFormedTurn(events, 'failed');
     expect(events[0]).toMatchObject({
@@ -236,7 +246,7 @@ describe('ClaudeEngineAdapter failures', () => {
       ],
     };
     const events = await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
+      createAdapter({ queryFactory: fake.factory }).startTurn(
         SESSION,
         { text: 'x' },
         { ...OPTIONS, tools },
@@ -261,7 +271,7 @@ describe('ClaudeEngineAdapter failures', () => {
       throw new Error('process exited with code 1');
     });
     const events = await collect(
-      new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
+      createAdapter({ queryFactory: fake.factory }).startTurn(
         SESSION,
         { text: 'x' },
         OPTIONS,
@@ -288,7 +298,7 @@ describe('ClaudeEngineAdapter cancel', () => {
 
   it('aborts the SDK turn and ends with done(cancelled) and no error', async () => {
     const fake = blockingQuery();
-    const adapter = new ClaudeEngineAdapter({ queryFactory: fake.factory });
+    const adapter = createAdapter({ queryFactory: fake.factory });
     const stream = adapter
       .startTurn(SESSION, { text: 'slow' }, { ...OPTIONS, turnId: 'turn-cancel' })
       [Symbol.asyncIterator]();
@@ -321,7 +331,7 @@ describe('ClaudeEngineAdapter cancel', () => {
         },
       },
     } as unknown as SDKMessage;
-    const adapter = new ClaudeEngineAdapter({ queryFactory: replay(INIT, usageThenError).factory });
+    const adapter = createAdapter({ queryFactory: replay(INIT, usageThenError).factory });
     const events: NootEvent[] = [];
     for await (const event of adapter.startTurn(SESSION, { text: 'x' }, OPTIONS)) {
       events.push(event);
@@ -335,7 +345,7 @@ describe('ClaudeEngineAdapter cancel', () => {
 
   it('closes the SDK query when the consumer stops reading', async () => {
     const fake = replay(INIT, SUCCESS);
-    const stream = new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(
+    const stream = createAdapter({ queryFactory: fake.factory }).startTurn(
       SESSION,
       { text: 'x' },
       OPTIONS,
@@ -348,14 +358,14 @@ describe('ClaudeEngineAdapter cancel', () => {
 
   it('treats unknown turn ids as a no-op', async () => {
     await expect(
-      new ClaudeEngineAdapter({ queryFactory: replay().factory }).cancel('nope'),
+      createAdapter({ queryFactory: replay().factory }).cancel('nope'),
     ).resolves.toBeUndefined();
   });
 });
 
 describe('ClaudeEngineAdapter capabilities', () => {
   it('exposes harness capability flags', () => {
-    expect(new ClaudeEngineAdapter({ queryFactory: replay().factory }).capabilities).toEqual({
+    expect(createAdapter({ queryFactory: replay().factory }).capabilities).toEqual({
       toolLoop: 'ownToolLoop',
       thinkingStream: true,
       sessions: true,

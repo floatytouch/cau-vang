@@ -80,8 +80,10 @@ const MARKER_TOOLS: ToolBridge = {
   execute: async () => ({ ok: true, result: 'MARKER-7731' }),
 };
 
+let smokeSubprocessEnv: NodeJS.ProcessEnv = { ...process.env };
+
 function newTurn(prompt: string, tools?: ToolBridge) {
-  const adapter = new ClaudeEngineAdapter();
+  const adapter = new ClaudeEngineAdapter({ subprocessEnv: smokeSubprocessEnv });
   const turnId = `turn-${crypto.randomUUID()}`;
   const stream = adapter.startTurn(
     { sessionId: `smoke-${crypto.randomUUID()}`, history: [] },
@@ -98,26 +100,20 @@ function newTurn(prompt: string, tools?: ToolBridge) {
 
 describe.runIf(RUN_OAUTH_SMOKE)('Claude OAuth smoke', () => {
   const captured: CapturedRequest[] = [];
-  const savedEnv = {
-    baseUrl: process.env.ANTHROPIC_BASE_URL,
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  };
   let proxy: http.Server;
 
   beforeAll(async () => {
     proxy = await startRecordingProxy(captured);
-    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`;
-    process.env.ANTHROPIC_API_KEY = BOGUS_API_KEY;
+    const proxyUrl = `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`;
+    // Bogus key is included so a strip failure would bill API auth and fail the turn.
+    smokeSubprocessEnv = {
+      ...process.env,
+      ANTHROPIC_BASE_URL: proxyUrl,
+      ANTHROPIC_API_KEY: BOGUS_API_KEY,
+    };
   });
 
   afterAll(async () => {
-    for (const [name, value] of [
-      ['ANTHROPIC_BASE_URL', savedEnv.baseUrl],
-      ['ANTHROPIC_API_KEY', savedEnv.apiKey],
-    ] as const) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
     await new Promise((resolve) => proxy.close(resolve));
   });
 

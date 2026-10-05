@@ -32,6 +32,7 @@ interface TurnState {
 export interface ClaudeEngineAdapterOptions {
   queryFactory?: ClaudeQueryFactory;
   sessionHandles?: SessionHandleStore;
+  subprocessEnv: NodeJS.ProcessEnv;
 }
 
 export class ClaudeEngineAdapter implements EngineAdapter {
@@ -40,11 +41,18 @@ export class ClaudeEngineAdapter implements EngineAdapter {
 
   private readonly queryFactory: ClaudeQueryFactory;
   private readonly sessionHandles: SessionHandleStore;
+  private readonly subprocessEnv: NodeJS.ProcessEnv;
   private readonly activeTurns = new Map<string, ActiveTurn>();
 
-  constructor(options: ClaudeEngineAdapterOptions = {}) {
+  constructor(options: ClaudeEngineAdapterOptions) {
+    if (options.subprocessEnv == null || typeof options.subprocessEnv !== 'object') {
+      throw new Error(
+        'ClaudeEngineAdapter requires subprocessEnv from the app config layer',
+      );
+    }
     this.queryFactory = options.queryFactory ?? defaultClaudeQueryFactory;
     this.sessionHandles = options.sessionHandles ?? new SessionHandleStore();
+    this.subprocessEnv = options.subprocessEnv;
   }
 
   async *startTurn(
@@ -64,7 +72,12 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     try {
       claudeQuery = this.queryFactory({
         prompt: input.text,
-        options: buildQueryOptions(options, abortController, resumeId),
+        options: buildQueryOptions(
+          options,
+          abortController,
+          resumeId,
+          this.subprocessEnv,
+        ),
       });
       for await (const message of claudeQuery) {
         this.trackSession(session.sessionId, message, state);
@@ -116,6 +129,7 @@ function buildQueryOptions(
   options: TurnOptions,
   abortController: AbortController,
   resumeId: string | undefined,
+  subprocessEnv: NodeJS.ProcessEnv,
 ): Options {
   const mcpServers = buildMcpServers(options.tools);
   return {
@@ -130,7 +144,7 @@ function buildQueryOptions(
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     abortController,
-    env: oauthSubprocessEnv(),
+    env: oauthSubprocessEnv(subprocessEnv),
     strictMcpConfig: true,
     ...(mcpServers ? { mcpServers } : {}),
     ...(resumeId ? { resume: resumeId } : {}),
