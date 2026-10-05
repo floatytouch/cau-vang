@@ -167,7 +167,9 @@ describe('UsageRecorder', () => {
   });
 });
 
-function usageEvent(partial: Partial<UsageEvent> & Pick<UsageEvent, 'inputTokens' | 'outputTokens'>): UsageEvent {
+function usageEvent(
+  partial: Partial<UsageEvent> & Pick<UsageEvent, 'inputTokens' | 'outputTokens'>,
+): UsageEvent {
   return {
     sessionId: 'session',
     turnId: 'turn',

@@ -1,12 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type {
-  DailyUsageResponse,
-  EngineUsageTotals,
-  UsageEvent,
-  UsageTotals,
-} from '@noot/shared';
+import type { DailyUsageResponse, EngineUsageTotals, UsageEvent, UsageTotals } from '@noot/shared';
 import { USAGE_DAY_PATTERN } from '@noot/shared';
 import type { UsageRecord } from './usage-types.js';
 
@@ -148,7 +143,9 @@ export function normalizeUsageDay(day: string | undefined, now = new Date()): st
 export function utcDayOf(isoTimestamp: string): string {
   const millis = Date.parse(isoTimestamp);
   if (Number.isNaN(millis)) {
-    throw new Error(`usage record ts is not a valid ISO timestamp: ${JSON.stringify(isoTimestamp)}`);
+    throw new Error(
+      `usage record ts is not a valid ISO timestamp: ${JSON.stringify(isoTimestamp)}`,
+    );
   }
   return new Date(millis).toISOString().slice(0, 10);
 }

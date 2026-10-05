@@ -141,11 +141,7 @@ async function* streamStep(
   throw new Error(`Engine ${params.adapter.id} ended its stream without a done event`);
 }
 
-function progress(
-  relay: TurnEventRelay,
-  label: string,
-  fraction?: number,
-): NootEvent {
+function progress(relay: TurnEventRelay, label: string, fraction?: number): NootEvent {
   return relay.relay({
     ...relay.meta(),
     type: 'progress',

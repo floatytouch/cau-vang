@@ -4,10 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  USAGE_DAILY_PATH,
-  type DailyUsageResponse,
-} from '@noot/shared';
+import { USAGE_DAILY_PATH, type DailyUsageResponse } from '@noot/shared';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../config/app-config.js';
@@ -39,10 +36,7 @@ describe('GET /usage/daily', () => {
     };
     const moduleRef = await Test.createTestingModule({
       controllers: [UsageController],
-      providers: [
-        { provide: BRAINCORE_OPTIONS, useValue: options },
-        BraincoreService,
-      ],
+      providers: [{ provide: BRAINCORE_OPTIONS, useValue: options }, BraincoreService],
     }).compile();
     braincore = moduleRef.get(BraincoreService);
     await braincore.initialize();
