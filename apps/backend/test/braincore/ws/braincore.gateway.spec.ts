@@ -6,16 +6,59 @@ import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
+  DONE_REASON_CANCELLED,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  WS_CANCEL_TURN_EVENT,
   WS_CHAT_SEND_EVENT,
+  WS_LIST_ENGINES_EVENT,
   WS_NOOT_EVENT,
+  WS_SET_MODE_EVENT,
   WS_SUBSCRIBE_SESSION_EVENT,
+  type EngineAdapter,
   type NootEvent,
 } from '@noot/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../../src/app.module.js';
 import { DEFAULT_MAX_CHAT_TEXT_LENGTH } from '../../../src/config/app-config.js';
 import { BraincoreService } from '../../../src/braincore/braincore.service.js';
-import { MOCK_ENGINE_ID } from '../../../src/braincore/testing/mock-engine-adapter.js';
+import {
+  MOCK_ENGINE_CAPABILITIES,
+  MOCK_ENGINE_ID,
+} from '../../../src/braincore/testing/mock-engine-adapter.js';
+
+const BLOCKING_ENGINE_ID = 'blocking-until-cancel';
+
+/** Streams one delta, then holds the turn open until cancel() releases it as `done(cancelled)`. */
+function createBlockingAdapter(): EngineAdapter {
+  let release: () => void = () => {};
+  return {
+    id: BLOCKING_ENGINE_ID,
+    capabilities: MOCK_ENGINE_CAPABILITIES,
+    async *startTurn(session, _input, options) {
+      const meta = { sessionId: session.sessionId, turnId: options.turnId };
+      const emittedAt = new Date().toISOString();
+      yield {
+        ...meta,
+        seq: 0,
+        emittedAt,
+        type: NOOT_EVENT_TYPE_TEXT_DELTA,
+        text: 'partial',
+      } satisfies NootEvent;
+      await new Promise<void>((resolve) => (release = resolve));
+      yield {
+        ...meta,
+        seq: 1,
+        emittedAt,
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_CANCELLED,
+      } satisfies NootEvent;
+    },
+    async cancel() {
+      release();
+    },
+  };
+}
 
 const ENV_KEYS = ['NOOT_BRAINCORE_DATA_DIR', 'NOOT_BRAINCORE_MOCK_ENGINES'] as const;
 
@@ -105,21 +148,24 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       ok: true,
     });
 
-    expect(
-      await client.emit(WS_CHAT_SEND_EVENT, { sessionId: session.id, text: 'hi there' }),
-    ).toEqual({
-      ok: true,
-    });
+    const sendAck = (await client.emit(WS_CHAT_SEND_EVENT, {
+      sessionId: session.id,
+      text: 'hi there',
+    })) as { ok: boolean; turnId?: string };
+    expect(sendAck.ok).toBe(true);
+    expect(sendAck.turnId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
 
     const payloads = client.events
       .filter((event) => event.name === WS_NOOT_EVENT)
       .map((event) => (event.payload as { payload: NootEvent }).payload);
     expect(payloads.map((event) => [event.type, event.seq])).toEqual([
       ['progress', 0],
-      ['text_delta', 1],
+      [NOOT_EVENT_TYPE_TEXT_DELTA, 1],
       ['usage', 2],
       ['progress', 3],
-      ['done', 4],
+      [NOOT_EVENT_TYPE_DONE, 4],
     ]);
     expect(payloads[1]).toMatchObject({ sessionId: session.id, text: 'hi there' });
   });
@@ -140,4 +186,95 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       ok: false,
     });
   });
+
+  it('lists registered engines and stores Plan/Auto mode per session', async () => {
+    const enginesAck = (await client.emit(WS_LIST_ENGINES_EVENT, {})) as {
+      ok: boolean;
+      engines: { id: string }[];
+    };
+    expect(enginesAck.ok).toBe(true);
+    expect(enginesAck.engines.map((engine) => engine.id).sort()).toEqual(['mock', 'mock-harness']);
+
+    const session = await app.get(BraincoreService).createSession(MOCK_ENGINE_ID, 'mock-model');
+    expect(await client.emit(WS_SET_MODE_EVENT, { sessionId: session.id, mode: 'plan' })).toEqual({
+      ok: true,
+      mode: 'plan',
+    });
+    expect(
+      await client.emit(WS_SET_MODE_EVENT, { sessionId: session.id, mode: 'nope' }),
+    ).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it.each([
+    [{}, /sessionId is required/],
+    [{ turnId: 'only-a-turn' }, /sessionId is required/],
+    [{ sessionId: 'nope' }, /Unknown session/],
+  ])('rejects a bad cancel_turn payload %#', async (payload, message) => {
+    const ack = (await client.emit(WS_CANCEL_TURN_EVENT, payload)) as FunnelAckShape;
+    expect(ack.ok).toBe(false);
+    expect(ack.error).toMatch(message);
+  });
+
+  it('cancels only the running turn of the named session', async () => {
+    const braincore = app.get(BraincoreService);
+    braincore.engines.register(createBlockingAdapter());
+    const session = await braincore.createSession(BLOCKING_ENGINE_ID, 'blocking-model');
+    const bystander = await braincore.createSession(MOCK_ENGINE_ID, 'mock-model');
+    await client.emit(WS_SUBSCRIBE_SESSION_EVENT, { sessionId: session.id });
+
+    const sendAck = client.emit(WS_CHAT_SEND_EVENT, { sessionId: session.id, text: 'hold' });
+    const firstDelta = await waitForEvent(client, session.id, NOOT_EVENT_TYPE_TEXT_DELTA);
+
+    expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: bystander.id })).toEqual({
+      ok: true,
+    });
+    expect(
+      await client.emit(WS_CANCEL_TURN_EVENT, {
+        sessionId: bystander.id,
+        turnId: firstDelta.turnId,
+      }),
+    ).toEqual({ ok: true });
+    const foreignTurn = (await client.emit(WS_CANCEL_TURN_EVENT, {
+      sessionId: session.id,
+      turnId: 'not-the-running-turn',
+    })) as FunnelAckShape;
+    expect(foreignTurn).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/not the running turn/),
+    });
+
+    expect(
+      await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id, turnId: firstDelta.turnId }),
+    ).toEqual({ ok: true });
+    expect(await sendAck).toMatchObject({ ok: true, turnId: firstDelta.turnId });
+    const done = await waitForEvent(client, session.id, NOOT_EVENT_TYPE_DONE);
+    expect(done).toMatchObject({ reason: DONE_REASON_CANCELLED });
+    expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id })).toEqual({
+      ok: true,
+    });
+  });
 });
+
+interface FunnelAckShape {
+  ok: boolean;
+  error?: string;
+}
+
+async function waitForEvent(
+  client: RawSocketIoClient,
+  sessionId: string,
+  type: NootEvent['type'],
+): Promise<NootEvent> {
+  for (;;) {
+    const match = client.events
+      .filter((event) => event.name === WS_NOOT_EVENT)
+      .map((event) => (event.payload as { payload: NootEvent }).payload)
+      .find((event) => event.sessionId === sessionId && event.type === type);
+    if (match) {
+      return match;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
