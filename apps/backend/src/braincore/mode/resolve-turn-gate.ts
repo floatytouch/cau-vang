@@ -1,4 +1,4 @@
-import type { WorkMode } from './work-mode.js';
+import { WORK_MODE_PLAN, type WorkMode } from './work-mode.js';
 import { isApproval } from './approval.js';
 import type { ToolAccessPolicy } from './tool-access-policy.js';
 import type { PendingApprovalStore } from './pending-approval-store.js';
@@ -28,7 +28,7 @@ export function resolveTurnGate(input: ResolveTurnGateInput): ResolvedTurnGate {
   return {
     policy: {
       get allowMutating() {
-        return approvedThisTurn || currentMode() !== 'plan';
+        return approvedThisTurn || currentMode() !== WORK_MODE_PLAN;
       },
     },
     approvedThisTurn,

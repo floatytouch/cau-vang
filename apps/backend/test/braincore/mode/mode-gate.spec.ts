@@ -1,15 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { ToolRegistry, registerSampleTools } from '../tools/tool-registry.js';
-import { APP_APPROVAL_TTL_MS, PendingApprovalStore } from './pending-approval-store.js';
-import { resolveTurnGate } from './resolve-turn-gate.js';
-import { decideMutatingToolAccess, createTurnToolPolicy } from './tool-access-policy.js';
-import { normalizeWorkMode, SAFE_WORK_MODE, type WorkMode } from './work-mode.js';
+import { APP_APPROVAL_TTL_MS, PendingApprovalStore } from '../../../src/braincore/mode/pending-approval-store.js';
+import { resolveTurnGate } from '../../../src/braincore/mode/resolve-turn-gate.js';
+import { createTurnToolPolicy, decideMutatingToolAccess } from '../../../src/braincore/mode/tool-access-policy.js';
+import {
+  normalizeWorkMode,
+  SAFE_WORK_MODE,
+  WORK_MODE_AUTO,
+  WORK_MODE_PLAN,
+  type WorkMode,
+} from '../../../src/braincore/mode/work-mode.js';
+import {
+  registerSampleTools,
+  ToolRegistry,
+  WRITE_SCRATCH_TOOL_NAME,
+} from '../../../src/braincore/tools/tool-registry.js';
 
-const WRITE_CALL = { callId: 'c1', name: 'write_scratch', args: { note: 'x' } };
+const WRITE_CALL = { callId: 'c1', name: WRITE_SCRATCH_TOOL_NAME, args: { note: 'x' } };
 
 function planGate(userText: string, approvals = new PendingApprovalStore(), nowMs?: number) {
   return resolveTurnGate({
-    currentMode: () => 'plan',
+    currentMode: () => WORK_MODE_PLAN,
     userText,
     sessionId: 'session-1',
     approvals,
@@ -28,10 +38,10 @@ describe('mode gate primitives', () => {
   });
 
   it('blocks mutating tools unless the turn policy allows them', () => {
-    expect(decideMutatingToolAccess(createTurnToolPolicy(true), 'write_scratch')).toEqual({
+    expect(decideMutatingToolAccess(createTurnToolPolicy(true), WRITE_SCRATCH_TOOL_NAME)).toEqual({
       ok: true,
     });
-    const denied = decideMutatingToolAccess(createTurnToolPolicy(false), 'write_scratch');
+    const denied = decideMutatingToolAccess(createTurnToolPolicy(false), WRITE_SCRATCH_TOOL_NAME);
     expect(denied.ok).toBe(false);
   });
 
@@ -73,7 +83,7 @@ describe('mode gate primitives', () => {
   });
 
   it('locks the rest of an auto turn the moment the session switches to plan', async () => {
-    let mode: WorkMode = 'auto';
+    let mode: WorkMode = WORK_MODE_AUTO;
     const gate = resolveTurnGate({
       currentMode: () => mode,
       userText: 'rewrite the scratch note',
@@ -83,7 +93,7 @@ describe('mode gate primitives', () => {
     const registry = new ToolRegistry();
     registerSampleTools(registry);
     expect(await registry.execute(WRITE_CALL, gate.policy)).toMatchObject({ ok: true });
-    mode = 'plan';
+    mode = WORK_MODE_PLAN;
     expect(await registry.execute(WRITE_CALL, gate.policy)).toMatchObject({
       ok: false,
       blocked: true,
@@ -96,12 +106,14 @@ describe('harness tool bridge (belt and braces)', () => {
     const registry = new ToolRegistry();
     registerSampleTools(registry);
     const locked = registry.createBridge(createTurnToolPolicy(false));
-    expect(locked.definitions.map((definition) => definition.name)).not.toContain('write_scratch');
+    expect(locked.definitions.map((definition) => definition.name)).not.toContain(
+      WRITE_SCRATCH_TOOL_NAME,
+    );
     expect(locked.definitions.map((definition) => definition.name)).toContain('echo_message');
     expect(await locked.execute(WRITE_CALL)).toMatchObject({ ok: false, blocked: true });
 
     const open = registry.createBridge(createTurnToolPolicy(true));
-    expect(open.definitions.map((definition) => definition.name)).toContain('write_scratch');
+    expect(open.definitions.map((definition) => definition.name)).toContain(WRITE_SCRATCH_TOOL_NAME);
     expect(await open.execute(WRITE_CALL)).toEqual({ ok: true, result: { written: 'x' } });
   });
 

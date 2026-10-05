@@ -66,6 +66,7 @@ export class ToolRegistry {
 }
 
 export const ECHO_MESSAGE_TOOL_NAME = 'echo_message';
+export const WRITE_SCRATCH_TOOL_NAME = 'write_scratch';
 
 export function registerSampleTools(registry: ToolRegistry): void {
   registry.register(
@@ -121,7 +122,7 @@ export function registerSampleTools(registry: ToolRegistry): void {
 
   registry.register(
     {
-      name: 'write_scratch',
+      name: WRITE_SCRATCH_TOOL_NAME,
       description: 'Writes a scratch note (sample mutating brain tool).',
       inputSchema: {
         type: 'object',

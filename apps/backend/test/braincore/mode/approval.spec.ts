@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isApproval, MAX_APPROVAL_WORDS } from './approval.js';
+import { isApproval, MAX_APPROVAL_WORDS } from '../../../src/braincore/mode/approval.js';
 
 describe('isApproval', () => {
   it.each([
