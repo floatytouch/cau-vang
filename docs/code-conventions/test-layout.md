@@ -20,7 +20,7 @@ This is a conscious deviation from NestJS's co-located-spec habit and from many 
 
 - Vitest `include`: `test/**/*.spec.ts` (frontend: `test/**/*.test.tsx` and `test/**/*.test.ts`).
 - Build `tsconfig`: `rootDir` / `include` stay on `src` only; tests are excluded from emit.
-- Workspace `tsconfig.json` (typecheck for tests) includes both `src` and `test`.
+- Workspace `tsconfig.json` (typecheck for tests) includes both `src` and `test`, except the frontend: `tsconfig.json` typechecks browser `src/` without Node types so `process.env` does not type-check there; `tsconfig.test.json` and `tsconfig.node.json` own Node types for tests and Vite config.
 - Automated guard: `yarn lint` runs `scripts/assert-no-specs-in-src.mjs`. It exits non-zero when a test file or `__tests__/` folder sits under a workspace `src/`, and also when it finds no `src/` to scan. `packages/shared/test/guards/no-specs-in-src.spec.ts` runs the same script against planted fixtures.
 
 ## Practice

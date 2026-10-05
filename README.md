@@ -45,7 +45,9 @@ Nest `ConfigModule` and Vite load those files only when the environment name is
 `development`. Unset `NODE_ENV` (a bare `node dist/main.js`), `yarn start`
 (`NODE_ENV=production`), staging, test, and every other value skip env files.
 Process environment variables always override file values. Inject production
-and staging variables in the process, never via `.env`.
+and staging variables in the process, never via `.env`. Scripts that prefix a
+command with `NODE_ENV=...` are POSIX-only (macOS, Linux, WSL); they are not
+valid in Windows `cmd.exe`.
 
 Backend port: `PORT` (default 3000). The Vite dev proxy targets `BACKEND_URL`
 (default `http://localhost:3000`).

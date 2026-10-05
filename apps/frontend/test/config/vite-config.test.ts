@@ -4,15 +4,29 @@ import path from 'node:path';
 import { NODE_ENV_DEVELOPMENT, NODE_ENV_PRODUCTION, NODE_ENV_STAGING } from '@noot/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadEnv } from 'vite';
+import type { ConfigEnv, UserConfig, UserConfigExport } from 'vite';
 import {
   createFrontendViteConfig,
   FRONTEND_REPO_ROOT,
   resolveViteBackendUrl,
   resolveViteEnvDir,
-} from '../../config/vite-env-dir.js';
+} from '../../config/vite-config.ts';
+import viteConfig from '../../vite.config.ts';
 
 const VITE_CANARY_TOKEN = 'LEAKCANARY_VITE_TOKEN';
 const VITE_CANARY_KEY = 'VITE_NOOT_WS_TOKEN';
+const VITE_COMMAND_BUILD = 'build' as const;
+const VITE_COMMAND_SERVE = 'serve' as const;
+
+async function resolveViteConfigExport(
+  configExport: UserConfigExport,
+  env: ConfigEnv,
+): Promise<UserConfig> {
+  if (typeof configExport !== 'function') {
+    return configExport;
+  }
+  return configExport(env);
+}
 
 describe('resolveViteEnvDir', () => {
   const repoRoot = '/tmp/noot-frontend-root';
@@ -65,6 +79,29 @@ describe('Vite envDir used by the config factory', () => {
     expect(createFrontendViteConfig(NODE_ENV_PRODUCTION).envDir).toBe(false);
     expect(createFrontendViteConfig(NODE_ENV_STAGING).envDir).toBe(false);
     expect(createFrontendViteConfig(NODE_ENV_DEVELOPMENT).envDir).toBe(FRONTEND_REPO_ROOT);
+  });
+});
+
+describe('vite.config.ts default export', () => {
+  it('disables envDir for production and staging builds', async () => {
+    const production = await resolveViteConfigExport(viteConfig, {
+      command: VITE_COMMAND_BUILD,
+      mode: NODE_ENV_PRODUCTION,
+    });
+    const staging = await resolveViteConfigExport(viteConfig, {
+      command: VITE_COMMAND_BUILD,
+      mode: NODE_ENV_STAGING,
+    });
+    expect(production.envDir).toBe(false);
+    expect(staging.envDir).toBe(false);
+  });
+
+  it('uses the repo root as envDir for the development server', async () => {
+    const development = await resolveViteConfigExport(viteConfig, {
+      command: VITE_COMMAND_SERVE,
+      mode: NODE_ENV_DEVELOPMENT,
+    });
+    expect(development.envDir).toBe(FRONTEND_REPO_ROOT);
   });
 });
 

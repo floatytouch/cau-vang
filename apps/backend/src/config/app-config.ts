@@ -24,7 +24,7 @@ export interface AppConfig {
   braincore: BraincoreRuntimeConfig;
 }
 
-/** Nested load() after env-files.ts; feature code still uses ConfigService. */
+/** Loads process env after env-files.ts applies dotenv; feature code still reads ConfigService. */
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const mockEngines = resolveFlag(env.NOOT_BRAINCORE_MOCK_ENGINES, 'NOOT_BRAINCORE_MOCK_ENGINES');
   return {
