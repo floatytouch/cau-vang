@@ -1,4 +1,5 @@
 import { CONVERSATION_MODES, type ConversationMode } from '@noot/shared';
+import type { ReactElement } from 'react';
 
 interface ModeToggleProps {
   mode: ConversationMode;
@@ -6,7 +7,7 @@ interface ModeToggleProps {
   onChange: (mode: ConversationMode) => void;
 }
 
-export function ModeToggle({ mode, disabled, onChange }: ModeToggleProps) {
+export function ModeToggle({ mode, disabled, onChange }: ModeToggleProps): ReactElement {
   return (
     <label className="noot-status">
       Mode{' '}

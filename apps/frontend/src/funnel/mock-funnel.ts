@@ -183,7 +183,12 @@ export class MockFunnel implements FunnelPort {
     return toSummary(session);
   }
 
-  async getHistory(sessionId: string) {
+  async getHistory(sessionId: string): Promise<{
+    history: HistoryMessageDto[];
+    engineId: string;
+    model: string;
+    mode: ConversationMode;
+  }> {
     const session = this.requireSession(sessionId);
     return {
       history: [...session.history],

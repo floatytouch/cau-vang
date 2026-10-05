@@ -4,6 +4,7 @@ import {
   useEffect,
   useEffectEvent,
   useState,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import {
@@ -22,7 +23,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }): ReactElement {
   const [preference, setPreferenceState] = useState<ThemePreference>(() =>
     typeof localStorage === 'undefined'
       ? DEFAULT_THEME_PREFERENCE

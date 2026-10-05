@@ -1,7 +1,8 @@
+import type { ReactElement } from 'react';
 import { THEME_PREFERENCES, type ThemePreference } from '../theme/theme.js';
 import { useTheme } from '../theme/ThemeProvider.js';
 
-export function ThemeToggle() {
+export function ThemeToggle(): ReactElement {
   const { preference, setPreference } = useTheme();
   return (
     <label className="noot-status">

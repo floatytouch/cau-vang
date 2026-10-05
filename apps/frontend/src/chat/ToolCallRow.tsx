@@ -1,6 +1,7 @@
+import type { ReactElement } from 'react';
 import type { ChatToolCall } from './chat-state.js';
 
-export function ToolCallRow({ tool }: { tool: ChatToolCall }) {
+export function ToolCallRow({ tool }: { tool: ChatToolCall }): ReactElement {
   return (
     <div className="noot-tool-row" role="status">
       <strong>{tool.name}</strong>

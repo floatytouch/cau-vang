@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { FunnelConnectionState } from '../funnel/funnel-port.js';
 
 const LABELS: Record<FunnelConnectionState, string> = {
@@ -7,7 +8,7 @@ const LABELS: Record<FunnelConnectionState, string> = {
   error: 'Connection error',
 };
 
-export function ConnectionStatus({ state }: { state: FunnelConnectionState }) {
+export function ConnectionStatus({ state }: { state: FunnelConnectionState }): ReactElement {
   return (
     <p className="noot-status" data-state={state} role="status">
       Funnel: {LABELS[state]}

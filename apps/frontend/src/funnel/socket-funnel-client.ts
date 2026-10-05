@@ -18,6 +18,7 @@ import {
   type EngineSummary,
   type FunnelAck,
   type GetHistoryAck,
+  type HistoryMessageDto,
   type ListEnginesAck,
   type ListSessionsAck,
   type ModeAck,
@@ -146,7 +147,12 @@ export class SocketFunnelClient implements FunnelPort {
     return ack.session;
   }
 
-  async getHistory(sessionId: string) {
+  async getHistory(sessionId: string): Promise<{
+    history: HistoryMessageDto[];
+    engineId: string;
+    model: string;
+    mode: ConversationMode;
+  }> {
     const ack = await this.emitAck<GetHistoryAck>(WS_GET_HISTORY_EVENT, { sessionId });
     if (!ack.ok || !ack.history || !ack.engineId || !ack.model) {
       throw new Error(ack.error ?? 'get_history failed');

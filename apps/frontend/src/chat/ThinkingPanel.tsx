@@ -1,9 +1,14 @@
+import type { ReactElement } from 'react';
+
 interface ThinkingPanelProps {
   text: string;
   defaultOpen?: boolean;
 }
 
-export function ThinkingPanel({ text, defaultOpen = false }: ThinkingPanelProps) {
+export function ThinkingPanel({
+  text,
+  defaultOpen = false,
+}: ThinkingPanelProps): ReactElement | null {
   if (!text) {
     return null;
   }

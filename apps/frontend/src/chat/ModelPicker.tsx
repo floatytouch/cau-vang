@@ -1,4 +1,5 @@
 import type { EngineSummary } from '@noot/shared';
+import type { ReactElement } from 'react';
 import { modelsForEngine } from '../config/engine-models.js';
 
 interface ModelPickerProps {
@@ -9,7 +10,13 @@ interface ModelPickerProps {
   onChange: (engineId: string, model: string) => void;
 }
 
-export function ModelPicker({ engines, engineId, model, disabled, onChange }: ModelPickerProps) {
+export function ModelPicker({
+  engines,
+  engineId,
+  model,
+  disabled,
+  onChange,
+}: ModelPickerProps): ReactElement {
   const models = modelsForEngine(engineId);
   return (
     <div className="noot-toolbar" role="group" aria-label="Model picker">

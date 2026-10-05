@@ -1,5 +1,5 @@
 import type { ChoiceOption, ConversationMode, EngineSummary } from '@noot/shared';
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useState, type ReactElement } from 'react';
 import { defaultModelForEngine } from '../config/engine-models.js';
 import type { FunnelConnectionState, FunnelPort } from '../funnel/funnel-port.js';
 import { ChoicesBar } from './ChoicesBar.js';
@@ -18,7 +18,7 @@ interface ChatPageProps {
   funnel: FunnelPort;
 }
 
-export function ChatPage({ funnel }: ChatPageProps) {
+export function ChatPage({ funnel }: ChatPageProps): ReactElement {
   const [connection, setConnection] = useState<FunnelConnectionState>(funnel.connectionState);
   const [engines, setEngines] = useState<EngineSummary[]>([]);
   const [state, dispatch] = useReducer(

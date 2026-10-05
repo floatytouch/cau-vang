@@ -1,4 +1,5 @@
 import type { ChoiceOption } from '@noot/shared';
+import type { ReactElement } from 'react';
 
 interface ChoicesBarProps {
   prompt?: string;
@@ -7,7 +8,12 @@ interface ChoicesBarProps {
   onSelect: (option: ChoiceOption) => void;
 }
 
-export function ChoicesBar({ prompt, options, disabled, onSelect }: ChoicesBarProps) {
+export function ChoicesBar({
+  prompt,
+  options,
+  disabled,
+  onSelect,
+}: ChoicesBarProps): ReactElement | null {
   if (options.length === 0) {
     return null;
   }
