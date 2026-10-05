@@ -1,4 +1,5 @@
 import type { ConversationRole } from '@noot/shared';
+import type { WorkMode } from '../mode/work-mode.js';
 
 export const STORED_ROLE_INTERNAL = 'internal' as const;
 
@@ -18,6 +19,8 @@ export interface StoredSession {
   messages: StoredMessage[];
   engineId: string;
   model: string;
+  /** Per-conversation Plan/Auto working mode; survives restart. */
+  mode: WorkMode;
   engineSessionToken?: string;
 }
 
@@ -29,6 +32,7 @@ export interface SessionSummary {
   messageCount: number;
   engineId: string;
   model: string;
+  mode: WorkMode;
   live: boolean;
 }
 

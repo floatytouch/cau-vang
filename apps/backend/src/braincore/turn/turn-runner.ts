@@ -12,6 +12,7 @@ import {
   NOOT_EVENT_TYPE_TOOL_CALL,
   TOOL_CALL_PHASE_END,
   TOOL_CALL_PHASE_START,
+  TOOL_CALL_STATUS_BLOCKED,
   TOOL_CALL_STATUS_FAILED,
   TOOL_CALL_STATUS_SUCCEEDED,
   type ConversationMessage,
@@ -25,6 +26,7 @@ import {
   type TurnInput,
   type TurnOptions,
 } from '@noot/shared';
+import type { ToolAccessPolicy } from '../mode/tool-access-policy.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import {
   PROGRESS_STAGE_FINISHING,
@@ -47,6 +49,7 @@ export interface RunTurnParams {
   input: TurnInput;
   options: TurnOptions;
   toolRegistry: ToolRegistry;
+  toolAccessPolicy?: ToolAccessPolicy;
 }
 
 interface StepOutcome {
@@ -101,7 +104,10 @@ async function* runBareApiToolLoop(
     yield progress(relay, PROGRESS_STAGE_RUNNING_TOOLS);
     const results: { callId: string; name: string; outcome: unknown }[] = [];
     for (const invocation of outcome.pendingTools) {
-      const toolOutcome = await params.toolRegistry.execute(invocation);
+      const toolOutcome = await params.toolRegistry.execute(
+        invocation,
+        params.toolAccessPolicy,
+      );
       yield relay.relay({
         ...relay.meta(),
         type: NOOT_EVENT_TYPE_TOOL_CALL,
@@ -173,6 +179,13 @@ function toolCallEndFields(toolOutcome: ToolOutcome): {
       status: TOOL_CALL_STATUS_SUCCEEDED,
       result: toolOutcome.result,
       error: undefined,
+    };
+  }
+  if (toolOutcome.blocked) {
+    return {
+      status: TOOL_CALL_STATUS_BLOCKED,
+      result: undefined,
+      error: toolOutcome.error,
     };
   }
   return {

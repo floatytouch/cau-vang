@@ -9,6 +9,8 @@ import {
 import {
   WS_CHAT_SEND_EVENT,
   WS_NOOT_EVENT,
+  WS_PLAN_APPROVE_EVENT,
+  WS_SET_MODE_EVENT,
   WS_SUBSCRIBE_SESSION_EVENT,
   type NootEvent,
   type WsNootEventMessage,
@@ -19,6 +21,7 @@ import { BRAINCORE_EVENT_CHANNEL, BraincoreService } from '../braincore.service.
 export interface GatewayAck {
   ok: boolean;
   error?: string;
+  mode?: string;
 }
 
 @WebSocketGateway()
@@ -70,6 +73,36 @@ export class BraincoreGateway implements OnGatewayInit {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
+
+  @SubscribeMessage(WS_SET_MODE_EVENT)
+  async handleSetMode(@MessageBody() body: unknown): Promise<GatewayAck> {
+    const sessionId = readString(body, 'sessionId');
+    const mode = readString(body, 'mode');
+    if (!sessionId || !mode) {
+      return { ok: false, error: 'sessionId and mode are required strings' };
+    }
+    try {
+      const next = await this.braincore.setMode(sessionId, mode);
+      return { ok: true, mode: next };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  @SubscribeMessage(WS_PLAN_APPROVE_EVENT)
+  handlePlanApprove(@MessageBody() body: unknown): GatewayAck {
+    const sessionId = readString(body, 'sessionId');
+    const approved = readBoolean(body, 'approved');
+    if (!sessionId || approved === undefined) {
+      return { ok: false, error: 'sessionId and approved (boolean) are required' };
+    }
+    try {
+      this.braincore.queuePlanApproval(sessionId, approved);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
 }
 
 function readString(body: unknown, field: string): string | undefined {
@@ -78,4 +111,12 @@ function readString(body: unknown, field: string): string | undefined {
   }
   const value = (body as Record<string, unknown>)[field];
   return typeof value === 'string' ? value : undefined;
+}
+
+function readBoolean(body: unknown, field: string): boolean | undefined {
+  if (typeof body !== 'object' || body === null) {
+    return undefined;
+  }
+  const value = (body as Record<string, unknown>)[field];
+  return typeof value === 'boolean' ? value : undefined;
 }

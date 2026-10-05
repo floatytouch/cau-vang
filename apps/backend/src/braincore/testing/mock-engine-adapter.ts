@@ -30,6 +30,9 @@ export const MOCK_USAGE_INPUT_TOKENS = 10;
 export const MOCK_USAGE_OUTPUT_TOKENS = 5;
 export const MOCK_USAGE_COST_USD = 0.001;
 
+/** Typed text containing this makes the bare-API mock request the mutating write_scratch tool. */
+export const MOCK_USE_WRITE_TOOL_MARKER = 'USE_WRITE_TOOL';
+
 export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
   toolLoop: ENGINE_TOOL_LOOP_BARE_API,
   thinkingStream: true,
@@ -88,6 +91,30 @@ export function createMockBareApiAdapter(): EngineAdapter {
         return;
       }
 
+      if (input.text.includes(MOCK_USE_WRITE_TOOL_MARKER)) {
+        const callId = randomUUID();
+        yield {
+          ...meta(session, options, 0),
+          type: 'thinking_delta',
+          text: 'selecting write_scratch tool',
+        } satisfies NootEvent;
+        yield {
+          ...meta(session, options, 1),
+          type: 'tool_call',
+          phase: 'start',
+          status: 'running',
+          callId,
+          name: 'write_scratch',
+          args: { note: 'from-mock' },
+        } satisfies NootEvent;
+        yield {
+          ...meta(session, options, 2),
+          type: 'done',
+          reason: 'completed',
+        } satisfies NootEvent;
+        return;
+      }
+
       if (input.text.includes(MOCK_USE_ECHO_TOOL_MARKER)) {
         const callId = randomUUID();
         yield {
@@ -133,6 +160,49 @@ export function createMockHarnessAdapter(): EngineAdapter {
     id: MOCK_HARNESS_ENGINE_ID,
     capabilities: MOCK_HARNESS_CAPABILITIES,
     async *startTurn(session, input, options) {
+      const tools = options.tools;
+      if (tools && input.text.includes(MOCK_USE_WRITE_TOOL_MARKER)) {
+        const callId = randomUUID();
+        yield {
+          ...meta(session, options, 0),
+          type: 'tool_call',
+          phase: 'start',
+          status: 'running',
+          callId,
+          name: 'write_scratch',
+          args: { note: 'from-harness' },
+        } satisfies NootEvent;
+        const offered = tools.definitions.some((definition) => definition.name === 'write_scratch');
+        const outcome = offered
+          ? await tools.execute({
+              callId,
+              name: 'write_scratch',
+              args: { note: 'from-harness' },
+            })
+          : {
+              ok: false as const,
+              error: 'write_scratch omitted from plan-mode tool set',
+              blocked: true,
+            };
+        yield {
+          ...meta(session, options, 1),
+          type: 'tool_call',
+          phase: 'end',
+          callId,
+          name: 'write_scratch',
+          status: outcome.ok ? 'succeeded' : outcome.blocked ? 'blocked' : 'failed',
+          result: outcome.ok ? outcome.result : undefined,
+          error: outcome.ok ? undefined : outcome.error,
+        } satisfies NootEvent;
+        yield {
+          ...meta(session, options, 2),
+          type: 'text_delta',
+          text: `harness-write:${outcome.ok ? 'ok' : 'blocked'}`,
+        } satisfies NootEvent;
+        yield { ...meta(session, options, 3), type: 'done', reason: 'completed' } satisfies NootEvent;
+        return;
+      }
+
       yield {
         ...meta(session, options, 0),
         type: NOOT_EVENT_TYPE_TEXT_DELTA,
