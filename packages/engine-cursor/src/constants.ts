@@ -1,4 +1,8 @@
-import { ENGINE_TOOL_LOOP_OWN } from '@noot/shared';
+import {
+  ENGINE_TOOL_LOOP_OWN,
+  TURN_ERROR_CODE_ENGINE_ERROR,
+  TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
+} from '@noot/shared';
 import type { EngineCapabilities } from '@noot/shared';
 
 export const CURSOR_ENGINE_ID = 'cursor';
@@ -14,8 +18,8 @@ export const CURSOR_ENGINE_CAPABILITIES: EngineCapabilities = {
 
 export const TURN_ERROR_CODES = {
   TIMEOUT: 'timeout',
-  RUN_FAILED: 'engine_error',
-  ENGINE_UNAVAILABLE: 'engine_unavailable',
+  RUN_FAILED: TURN_ERROR_CODE_ENGINE_ERROR,
+  ENGINE_UNAVAILABLE: TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
   AUTH_FAILED: 'auth_failed',
   RATE_LIMITED: 'rate_limited',
   INVALID_CONFIG: 'invalid_config',

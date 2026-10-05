@@ -42,10 +42,12 @@ export class ToolRegistry {
   }
 }
 
+export const ECHO_MESSAGE_TOOL_NAME = 'echo_message';
+
 export function registerSampleTools(registry: ToolRegistry): void {
   registry.register(
     {
-      name: 'echo_message',
+      name: ECHO_MESSAGE_TOOL_NAME,
       description: 'Returns the message argument unchanged (sample brain tool).',
       inputSchema: {
         type: 'object',

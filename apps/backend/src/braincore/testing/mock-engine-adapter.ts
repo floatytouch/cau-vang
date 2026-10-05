@@ -17,6 +17,7 @@ import type {
   NootEvent,
   TurnOptions,
 } from '@noot/shared';
+import { ECHO_MESSAGE_TOOL_NAME } from '../tools/tool-registry.js';
 import { TOOL_RESULTS_INPUT_PREFIX } from '../turn/turn-runner.js';
 
 export const MOCK_ENGINE_ID = 'mock';
@@ -82,7 +83,7 @@ export function createMockBareApiAdapter(): EngineAdapter {
           phase: TOOL_CALL_PHASE_START,
           status: TOOL_CALL_STATUS_RUNNING,
           callId,
-          name: 'echo_message',
+          name: ECHO_MESSAGE_TOOL_NAME,
           args: { message: 'from-mock' },
         } satisfies NootEvent;
         yield {

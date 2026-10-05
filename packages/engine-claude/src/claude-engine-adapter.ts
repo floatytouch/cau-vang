@@ -4,6 +4,7 @@ import {
   DONE_REASON_CANCELLED,
   DONE_REASON_COMPLETED,
   DONE_REASON_FAILED,
+  TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
 } from '@noot/shared';
 import type { Options, Query, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type {
@@ -23,8 +24,6 @@ import { oauthSubprocessEnv } from './oauth-subprocess-env.js';
 import { SdkMessageMapper } from './sdk-message-mapper.js';
 import { SessionHandleStore } from './session-handle-store.js';
 import { createToolBridgeMcpServer } from './tool-bridge-mcp-server.js';
-
-const ENGINE_FAILURE_CODE = 'engine_unavailable';
 
 interface ActiveTurn {
   abortController: AbortController;
@@ -167,7 +166,7 @@ function failureEvent(sequence: EventSequence, error: unknown): NootEvent {
   return {
     ...sequence.meta(),
     type: NOOT_EVENT_TYPE_ERROR,
-    code: ENGINE_FAILURE_CODE,
+    code: TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
     message: error instanceof Error ? error.message : String(error),
     recoverable: false,
   };

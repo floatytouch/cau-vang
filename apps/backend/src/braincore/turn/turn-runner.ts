@@ -1,4 +1,6 @@
 import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
   DONE_REASON_COMPLETED,
   DONE_REASON_FAILED,
   isBareApiEngine,
@@ -100,8 +102,8 @@ async function* runBareApiToolLoop(
     }
 
     history.push(
-      { role: 'user', text: stepInput.text },
-      { role: 'assistant', text: describeStep(outcome) },
+      { role: CONVERSATION_ROLE_USER, text: stepInput.text },
+      { role: CONVERSATION_ROLE_ASSISTANT, text: describeStep(outcome) },
     );
     stepInput = { text: `${TOOL_RESULTS_INPUT_PREFIX}${JSON.stringify(results)}` };
   }

@@ -158,6 +158,10 @@ export interface DoneEvent extends NootEventMeta {
   reason: DoneReason;
 }
 
+/** Codes more than one engine emits; an engine may also pass its SDK's own code through. */
+export const TURN_ERROR_CODE_ENGINE_UNAVAILABLE = 'engine_unavailable' as const;
+export const TURN_ERROR_CODE_ENGINE_ERROR = 'engine_error' as const;
+
 export interface TurnErrorEvent extends NootEventMeta {
   type: typeof NOOT_EVENT_TYPE_ERROR;
   /** Machine-readable class, e.g. `engine_unavailable`, `rate_limited`. */

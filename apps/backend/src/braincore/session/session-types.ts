@@ -1,4 +1,8 @@
-export type StoredMessageRole = 'user' | 'assistant' | 'internal';
+import type { ConversationRole } from '@noot/shared';
+
+export const STORED_ROLE_INTERNAL = 'internal' as const;
+
+export type StoredMessageRole = ConversationRole | typeof STORED_ROLE_INTERNAL;
 
 export interface StoredMessage {
   role: StoredMessageRole;

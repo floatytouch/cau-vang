@@ -32,8 +32,13 @@ export function isBareApiEngine(capabilities: EngineCapabilities): boolean {
   return capabilities.toolLoop === ENGINE_TOOL_LOOP_BARE_API;
 }
 
+export const CONVERSATION_ROLE_USER = 'user' as const;
+export const CONVERSATION_ROLE_ASSISTANT = 'assistant' as const;
+
+export type ConversationRole = typeof CONVERSATION_ROLE_USER | typeof CONVERSATION_ROLE_ASSISTANT;
+
 export interface ConversationMessage {
-  role: 'user' | 'assistant';
+  role: ConversationRole;
   text: string;
 }
 

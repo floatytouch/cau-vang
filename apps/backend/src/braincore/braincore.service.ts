@@ -1,4 +1,6 @@
 import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
   DONE_REASON_COMPLETED,
   ENGINE_TOOL_LOOP_OWN,
   NOOT_EVENT_TYPE_DONE,
@@ -18,6 +20,7 @@ import {
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
 import { SessionManager } from './session/session-manager.js';
+import { STORED_ROLE_INTERNAL } from './session/session-types.js';
 import {
   createMockBareApiAdapter,
   createMockHarnessAdapter,
@@ -105,7 +108,7 @@ export class BraincoreService extends EventEmitter {
 
   /** A background job's result: stored as `internal`, emitted as its own note turn. */
   async postInternalTurn(sessionId: string, source: string, text: string): Promise<void> {
-    await this.sessions.appendMessage(sessionId, 'internal', text);
+    await this.sessions.appendMessage(sessionId, STORED_ROLE_INTERNAL, text);
     const meta = { sessionId, turnId: randomUUID(), emittedAt: new Date().toISOString() };
     this.emitEvent({ ...meta, seq: 0, type: NOOT_EVENT_TYPE_INTERNAL_NOTE, source, text });
     this.emitEvent({ ...meta, seq: 1, type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED });
@@ -120,7 +123,7 @@ export class BraincoreService extends EventEmitter {
     }
     try {
       const history = this.sessions.conversationMessages(sessionId);
-      await this.sessions.appendMessage(sessionId, 'user', text);
+      await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_USER, text);
       const turnId = randomUUID();
       this.activeTurns.set(turnId, adapter);
       try {
@@ -140,7 +143,7 @@ export class BraincoreService extends EventEmitter {
           toolRegistry: this.tools,
         });
         if (assistantText.trim()) {
-          await this.sessions.appendMessage(sessionId, 'assistant', assistantText);
+          await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_ASSISTANT, assistantText);
         }
       } finally {
         this.activeTurns.delete(turnId);
