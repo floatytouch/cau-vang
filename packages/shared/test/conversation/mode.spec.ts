@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isConversationMode } from './mode.js';
+import { isConversationMode } from '../../src/conversation/mode.js';
 
 describe('isConversationMode', () => {
   it('accepts only auto and plan', () => {

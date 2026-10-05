@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveTheme } from './theme.js';
+import { resolveTheme } from '../../src/theme/theme.js';
 
 describe('resolveTheme', () => {
   it('follows the system preference only in system mode', () => {

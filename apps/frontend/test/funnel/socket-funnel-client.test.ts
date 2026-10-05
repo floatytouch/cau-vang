@@ -1,6 +1,6 @@
 import { WS_CHAT_SEND_EVENT, WS_SUBSCRIBE_SESSION_EVENT } from '@noot/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SocketFunnelClient } from './socket-funnel-client.js';
+import { SocketFunnelClient } from '../../src/funnel/socket-funnel-client.js';
 
 interface EmittedFrame {
   event: string;

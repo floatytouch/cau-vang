@@ -1,5 +1,12 @@
+import {
+  DONE_REASON_COMPLETED,
+  NOOT_EVENT_TYPE_CHOICES,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+} from '@noot/shared';
 import { describe, expect, it } from 'vitest';
-import { chatReducer, createInitialChatState } from './chat-state.js';
+import { chatReducer, createInitialChatState } from '../../src/chat/chat-state.js';
 
 describe('chatReducer', () => {
   it('accumulates stream text, thinking, choices and marks the turn done', () => {
@@ -16,7 +23,7 @@ describe('chatReducer', () => {
     state = chatReducer(state, {
       type: 'turn/event',
       event: {
-        type: 'thinking_delta',
+        type: NOOT_EVENT_TYPE_THINKING_DELTA,
         text: 'hmm',
         sessionId: 's1',
         turnId: 't1',
@@ -27,7 +34,7 @@ describe('chatReducer', () => {
     state = chatReducer(state, {
       type: 'turn/event',
       event: {
-        type: 'text_delta',
+        type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: 'hello',
         sessionId: 's1',
         turnId: 't1',
@@ -38,7 +45,7 @@ describe('chatReducer', () => {
     state = chatReducer(state, {
       type: 'turn/event',
       event: {
-        type: 'choices',
+        type: NOOT_EVENT_TYPE_CHOICES,
         prompt: 'Pick',
         options: [{ id: 'a', label: 'A' }],
         sessionId: 's1',
@@ -50,8 +57,8 @@ describe('chatReducer', () => {
     state = chatReducer(state, {
       type: 'turn/event',
       event: {
-        type: 'done',
-        reason: 'completed',
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_COMPLETED,
         sessionId: 's1',
         turnId: 't1',
         seq: 3,
@@ -78,7 +85,7 @@ describe('chatReducer', () => {
     state = chatReducer(state, {
       type: 'turn/event',
       event: {
-        type: 'choices',
+        type: NOOT_EVENT_TYPE_CHOICES,
         prompt: 'Pick',
         options: [{ id: 'a', label: 'A' }],
         sessionId: 's1',

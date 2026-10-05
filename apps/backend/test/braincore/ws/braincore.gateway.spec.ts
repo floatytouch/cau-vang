@@ -225,7 +225,7 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     await client.emit(WS_SUBSCRIBE_SESSION_EVENT, { sessionId: session.id });
 
     const sendAck = client.emit(WS_CHAT_SEND_EVENT, { sessionId: session.id, text: 'hold' });
-    const firstDelta = await waitForEvent(client, session.id, 'text_delta');
+    const firstDelta = await waitForEvent(client, session.id, NOOT_EVENT_TYPE_TEXT_DELTA);
 
     expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: bystander.id })).toEqual({
       ok: true,
@@ -249,8 +249,8 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id, turnId: firstDelta.turnId }),
     ).toEqual({ ok: true });
     expect(await sendAck).toMatchObject({ ok: true, turnId: firstDelta.turnId });
-    const done = await waitForEvent(client, session.id, 'done');
-    expect(done).toMatchObject({ reason: 'cancelled' });
+    const done = await waitForEvent(client, session.id, NOOT_EVENT_TYPE_DONE);
+    expect(done).toMatchObject({ reason: DONE_REASON_CANCELLED });
     expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id })).toEqual({
       ok: true,
     });

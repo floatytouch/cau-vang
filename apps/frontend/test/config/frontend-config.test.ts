@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadFrontendConfig } from './frontend-config.js';
+import { loadFrontendConfig } from '../../src/config/frontend-config.js';
 
 describe('loadFrontendConfig', () => {
   it('leaves the WS token unset when the env does not provide one', () => {

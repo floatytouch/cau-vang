@@ -1,9 +1,20 @@
-import type {
-  ChoiceOption,
-  ConversationMode,
-  HistoryMessageDto,
-  NootEvent,
-  ToolCallStatus,
+import {
+  NOOT_EVENT_TYPE_CHOICES,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_INTERNAL_NOTE,
+  NOOT_EVENT_TYPE_PROGRESS,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  NOOT_EVENT_TYPE_USAGE,
+  TOOL_CALL_PHASE_END,
+  TOOL_CALL_PHASE_UPDATE,
+  type ChoiceOption,
+  type ConversationMode,
+  type HistoryMessageDto,
+  type NootEvent,
+  type ToolCallStatus,
 } from '@noot/shared';
 
 export interface ChatToolCall {
@@ -133,7 +144,7 @@ function applyEvent(state: ChatState, event: NootEvent): ChatState {
     return state;
   }
 
-  if (event.type === 'choices') {
+  if (event.type === NOOT_EVENT_TYPE_CHOICES) {
     return {
       ...state,
       activeTurnId: event.turnId,
@@ -151,7 +162,7 @@ function applyEvent(state: ChatState, event: NootEvent): ChatState {
     turn: reduceTurn(turn, event),
   };
 
-  if (event.type === 'done') {
+  if (event.type === NOOT_EVENT_TYPE_DONE) {
     const assistantText = next.turn?.text.trim();
     return {
       ...next,
@@ -162,7 +173,7 @@ function applyEvent(state: ChatState, event: NootEvent): ChatState {
         : next.history,
     };
   }
-  if (event.type === 'internal_note') {
+  if (event.type === NOOT_EVENT_TYPE_INTERNAL_NOTE) {
     return {
       ...next,
       history: [...next.history, { role: 'internal', text: event.text, ts: event.emittedAt }],
@@ -185,30 +196,30 @@ function ensureTurn(turn: ChatTurnView | undefined, turnId: string): ChatTurnVie
 
 function reduceTurn(turn: ChatTurnView, event: NootEvent): ChatTurnView {
   switch (event.type) {
-    case 'text_delta':
+    case NOOT_EVENT_TYPE_TEXT_DELTA:
       return { ...turn, text: turn.text + event.text };
-    case 'thinking_delta':
+    case NOOT_EVENT_TYPE_THINKING_DELTA:
       return { ...turn, thinking: turn.thinking + event.text };
-    case 'tool_call':
+    case NOOT_EVENT_TYPE_TOOL_CALL:
       return { ...turn, tools: upsertTool(turn.tools, event) };
-    case 'choices':
+    case NOOT_EVENT_TYPE_CHOICES:
       return turn;
-    case 'progress':
+    case NOOT_EVENT_TYPE_PROGRESS:
       return {
         ...turn,
         progressLabel: event.label,
         progressFraction: event.fraction,
       };
-    case 'usage':
+    case NOOT_EVENT_TYPE_USAGE:
       return {
         ...turn,
         usageLabel: `${event.engine}/${event.model}: ${event.inputTokens}+${event.outputTokens} tok`,
       };
-    case 'error':
+    case NOOT_EVENT_TYPE_ERROR:
       return { ...turn, errorMessage: event.message };
-    case 'done':
+    case NOOT_EVENT_TYPE_DONE:
       return { ...turn, doneReason: event.reason };
-    case 'internal_note':
+    case NOOT_EVENT_TYPE_INTERNAL_NOTE:
       return { ...turn, internalNote: event.text };
     default:
       return turn;
@@ -217,7 +228,7 @@ function reduceTurn(turn: ChatTurnView, event: NootEvent): ChatTurnView {
 
 function upsertTool(
   tools: ChatToolCall[],
-  event: Extract<NootEvent, { type: 'tool_call' }>,
+  event: Extract<NootEvent, { type: typeof NOOT_EVENT_TYPE_TOOL_CALL }>,
 ): ChatToolCall[] {
   const existing = tools.find((tool) => tool.callId === event.callId);
   const nextTool: ChatToolCall = {
@@ -232,11 +243,13 @@ function upsertTool(
   return tools.map((tool) => (tool.callId === event.callId ? { ...tool, ...nextTool } : tool));
 }
 
-function toolMessage(event: Extract<NootEvent, { type: 'tool_call' }>): string | undefined {
-  if (event.phase === 'update') {
+function toolMessage(
+  event: Extract<NootEvent, { type: typeof NOOT_EVENT_TYPE_TOOL_CALL }>,
+): string | undefined {
+  if (event.phase === TOOL_CALL_PHASE_UPDATE) {
     return event.message;
   }
-  if (event.phase === 'end') {
+  if (event.phase === TOOL_CALL_PHASE_END) {
     return event.error;
   }
   return undefined;

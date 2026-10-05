@@ -1,5 +1,11 @@
 import {
   DEFAULT_CONVERSATION_MODE,
+  DONE_REASON_CANCELLED,
+  DONE_REASON_COMPLETED,
+  NOOT_EVENT_TYPE_CHOICES,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
   type ConversationMode,
   type EngineSummary,
   type FunnelAck,
@@ -120,8 +126,8 @@ export class MockFunnel implements FunnelPort {
           turnId: this.activeTurnId,
           seq: event.seq,
           emittedAt: now(),
-          type: 'done',
-          reason: 'cancelled',
+          type: NOOT_EVENT_TYPE_DONE,
+          reason: DONE_REASON_CANCELLED,
         });
         this.activeTurnId = undefined;
         return { ok: true };
@@ -130,7 +136,7 @@ export class MockFunnel implements FunnelPort {
         await sleep(gap);
       }
       const framed = { ...event, sessionId, turnId: this.activeTurnId };
-      if (framed.type === 'text_delta') {
+      if (framed.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         assistantParts.push(framed.text);
       }
       this.emit(framed);
@@ -254,7 +260,7 @@ function defaultStreamEvents(
       turnId,
       seq: 0,
       emittedAt: stamp,
-      type: 'thinking_delta',
+      type: NOOT_EVENT_TYPE_THINKING_DELTA,
       text: 'considering the reply',
     },
     {
@@ -262,7 +268,7 @@ function defaultStreamEvents(
       turnId,
       seq: 1,
       emittedAt: stamp,
-      type: 'text_delta',
+      type: NOOT_EVENT_TYPE_TEXT_DELTA,
       text: `echo: ${text}`,
     },
   ];
@@ -272,7 +278,7 @@ function defaultStreamEvents(
       turnId,
       seq: 2,
       emittedAt: stamp,
-      type: 'choices',
+      type: NOOT_EVENT_TYPE_CHOICES,
       prompt: 'Pick one',
       options: [
         { id: 'a', label: 'Option A' },
@@ -285,8 +291,8 @@ function defaultStreamEvents(
     turnId,
     seq: includeChoices ? 3 : 2,
     emittedAt: stamp,
-    type: 'done',
-    reason: 'completed',
+    type: NOOT_EVENT_TYPE_DONE,
+    reason: DONE_REASON_COMPLETED,
   });
   return events;
 }

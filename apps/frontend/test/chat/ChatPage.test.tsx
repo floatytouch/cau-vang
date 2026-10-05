@@ -1,8 +1,14 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { App } from '../App.js';
-import { MockFunnel } from '../funnel/mock-funnel.js';
-import type { NootEvent } from '@noot/shared';
+import { App } from '../../src/App.js';
+import { MockFunnel } from '../../src/funnel/mock-funnel.js';
+import {
+  DONE_REASON_COMPLETED,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  type NootEvent,
+} from '@noot/shared';
 
 afterEach(() => {
   cleanup();
@@ -144,7 +150,7 @@ function longStreamEvents(): NootEvent[] {
       turnId: 't',
       seq: 0,
       emittedAt: '2026-10-05T00:00:00.000Z',
-      type: 'thinking_delta',
+      type: NOOT_EVENT_TYPE_THINKING_DELTA,
       text: 'still thinking',
     },
     {
@@ -152,7 +158,7 @@ function longStreamEvents(): NootEvent[] {
       turnId: 't',
       seq: 1,
       emittedAt: '2026-10-05T00:00:00.000Z',
-      type: 'text_delta',
+      type: NOOT_EVENT_TYPE_TEXT_DELTA,
       text: 'chunk-one ',
     },
     {
@@ -160,7 +166,7 @@ function longStreamEvents(): NootEvent[] {
       turnId: 't',
       seq: 2,
       emittedAt: '2026-10-05T00:00:00.000Z',
-      type: 'text_delta',
+      type: NOOT_EVENT_TYPE_TEXT_DELTA,
       text: 'chunk-two',
     },
     doneEvent(3),
@@ -173,7 +179,7 @@ function textEvent(text: string, seq: number): NootEvent {
     turnId: 't',
     seq,
     emittedAt: '2026-10-05T00:00:00.000Z',
-    type: 'text_delta',
+    type: NOOT_EVENT_TYPE_TEXT_DELTA,
     text,
   };
 }
@@ -184,7 +190,7 @@ function doneEvent(seq: number): NootEvent {
     turnId: 't',
     seq,
     emittedAt: '2026-10-05T00:00:00.000Z',
-    type: 'done',
-    reason: 'completed',
+    type: NOOT_EVENT_TYPE_DONE,
+    reason: DONE_REASON_COMPLETED,
   };
 }
