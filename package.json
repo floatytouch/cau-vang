@@ -1,0 +1,32 @@
+{
+  "name": "noot-v2",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.18.1+sha512.b2e1e7524f654f2749d32b4ebcb4622473cb5bcbc485df2007e12a154e50162a4d795526768bc5f5b8f81717bfd79deb2472813d86fb5ae2eb551fa9c872b08f",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspace @noot/shared build && yarn workspace @noot/backend build && yarn workspace @noot/frontend build",
+    "dev": "yarn workspace @noot/shared build && concurrently --names shared,backend,frontend \"yarn workspace @noot/shared dev\" \"yarn workspace @noot/backend dev\" \"yarn workspace @noot/frontend dev\"",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "yarn workspace @noot/shared build && yarn workspaces foreach --all --exclude noot-v2 --parallel --topological run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "concurrently": "10.0.5",
+    "eslint": "10.12.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jiti": "2.7.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0"
+  }
+}
