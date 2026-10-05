@@ -222,15 +222,9 @@ export class SessionManager {
     const previous = this.pendingWrites.get(session.id) ?? Promise.resolve();
     const write = previous
       .catch(() => undefined)
-      .then(async () => {
-        if (this.sessions.get(session.id) !== session) {
-          return;
-        }
-        await writeFileAtomic(
-          this.sessionPath(session.id),
-          `${JSON.stringify(session, null, 2)}\n`,
-        );
-      });
+      .then(() =>
+        writeFileAtomic(this.sessionPath(session.id), `${JSON.stringify(session, null, 2)}\n`),
+      );
     this.pendingWrites.set(session.id, write);
     const forget = () => {
       if (this.pendingWrites.get(session.id) === write) {

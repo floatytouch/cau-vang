@@ -1,9 +1,24 @@
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { writeFileAtomic } from '../persistence/atomic-write.js';
 import { SessionManager } from './session-manager.js';
 import type { StoredSession } from './session-types.js';
+
+const writeDelays = vi.hoisted(() => ({ firstWriteMs: 0 }));
+
+vi.mock('../persistence/atomic-write.js', async (importOriginal) => {
+  const actual = await importOriginal<{ writeFileAtomic: typeof writeFileAtomic }>();
+  return {
+    writeFileAtomic: vi.fn(async (target: string, contents: string) => {
+      const delay = writeDelays.firstWriteMs;
+      writeDelays.firstWriteMs = 0;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      await actual.writeFileAtomic(target, contents);
+    }),
+  };
+});
 
 describe('SessionManager', () => {
   let dataDir: string;
@@ -49,7 +64,7 @@ describe('SessionManager', () => {
     expect(manager.beginTurn(first!.id)).toBe(false);
   });
 
-  it('skips corrupt, foreign and traversal-id files on restart and keeps the valid ones', async () => {
+  it('skips corrupt, invalid and traversal-id files on restart and keeps the valid ones', async () => {
     const [valid] = await createMany(1);
     await manager.appendMessage(valid!.id, 'user', 'kept');
     const traversal = { ...valid!, id: '../../escaped' };
@@ -66,17 +81,29 @@ describe('SessionManager', () => {
     expect(restarted.getHistory(valid!.id).map((message) => message.text)).toEqual(['kept']);
   });
 
-  it('lands the newest snapshot when writes of one session race', async () => {
+  it('skips a file whose session id differs from its file name', async () => {
     const [session] = await createMany(1);
-    await Promise.all(
-      Array.from({ length: 20 }, (_, index) =>
-        manager.appendMessage(session!.id, 'user', `message-${index}`),
-      ),
-    );
+    const foreignId = '11111111-1111-4111-8111-111111111111';
+    await rm(path.join(conversationsDir, `${session!.id}.json`));
+    await writeFile(path.join(conversationsDir, `${foreignId}.json`), JSON.stringify(session));
+
+    const restarted = new SessionManager({ dataDir });
+    await restarted.initialize();
+    expect(restarted.listSessions()).toEqual([]);
+  });
+
+  it('lands the newest snapshot when an older write of the same session is slower', async () => {
+    const [session] = await createMany(1);
+    writeDelays.firstWriteMs = 50;
+    const older = manager.appendMessage(session!.id, 'user', 'first');
+    await new Promise((resolve) => setImmediate(resolve));
+    const newer = manager.appendMessage(session!.id, 'user', 'second');
+    await Promise.all([older, newer]);
+
     const stored = JSON.parse(
       await readFile(path.join(conversationsDir, `${session!.id}.json`), 'utf8'),
     ) as StoredSession;
-    expect(stored.messages).toHaveLength(20);
+    expect(stored.messages.map((message) => message.text)).toEqual(['first', 'second']);
     expect((await readdir(conversationsDir)).filter((name) => name.endsWith('.tmp'))).toEqual([]);
   });
 
