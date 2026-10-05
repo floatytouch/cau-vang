@@ -966,6 +966,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noot/engine-lumo@workspace:packages/engine-lumo":
+  version: 0.0.0-use.local
+  resolution: "@noot/engine-lumo@workspace:packages/engine-lumo"
+  dependencies:
+    "@noot/shared": "workspace:*"
+    "@types/node": "npm:24.19.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.3.2"
+    vitest: "npm:5.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@noot/frontend@workspace:apps/frontend":
   version: 0.0.0-use.local
   resolution: "@noot/frontend@workspace:apps/frontend"
