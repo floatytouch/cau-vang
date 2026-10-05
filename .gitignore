@@ -12,7 +12,8 @@ coverage/
 !.yarn/releases
 .pnp.*
 
-.worktrees/
+apps/backend/data/
+
 CLAUDE.md
 AGENTS.md
 .claude/
