@@ -1,9 +1,9 @@
-import type { ConversationRole } from '@noot/shared';
+import { STORED_ROLE_INTERNAL, type HistoryMessageRole } from '@noot/shared';
 import type { WorkMode } from '../mode/work-mode.js';
 
-export const STORED_ROLE_INTERNAL = 'internal' as const;
+export { STORED_ROLE_INTERNAL };
 
-export type StoredMessageRole = ConversationRole | typeof STORED_ROLE_INTERNAL;
+export type StoredMessageRole = HistoryMessageRole;
 
 export interface StoredMessage {
   role: StoredMessageRole;

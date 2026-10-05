@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/App.js';
-import { MockFunnel } from '../../src/funnel/mock-funnel.js';
+import { MockFunnel } from '../support/mock-funnel.js';
 import {
   DONE_REASON_COMPLETED,
   NOOT_EVENT_TYPE_DONE,
@@ -10,11 +10,32 @@ import {
   type NootEvent,
 } from '@noot/shared';
 
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      Response.json({
+        status: 'ok',
+        service: 'noot-backend',
+        uptimeSeconds: 7,
+        timestamp: '2026-10-05T00:00:00.000Z',
+      }),
+    ),
+  );
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('Chat UI against a mock funnel', () => {
+  it('keeps the backend health status in the header', async () => {
+    render(<App funnel={new MockFunnel()} />);
+
+    expect(await screen.findByText('Backend noot-backend: ok (up 7s)')).toBeTruthy();
+  });
+
   it('streams text, shows thinking, and lets the user pick a choice once', async () => {
     const funnel = new MockFunnel();
     render(<App funnel={funnel} />);
@@ -133,6 +154,7 @@ describe('Chat UI against a mock funnel', () => {
       'funnel disconnected during chat_send',
     );
     expect((screen.getByRole('button', { name: 'Stop' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('partial')).toBeTruthy();
   });
 });
 

@@ -1,9 +1,16 @@
-import type { ChoiceOption, ConversationMode, EngineSummary } from '@noot/shared';
-import { useEffect, useReducer, useState, type ReactElement } from 'react';
+import {
+  CONVERSATION_ROLE_ASSISTANT,
+  DONE_REASON_CANCELLED,
+  MOCK_ENGINE_ID,
+  type ChoiceOption,
+  type ConversationMode,
+  type EngineSummary,
+} from '@noot/shared';
+import { useEffect, useReducer, useState, type ReactElement, type ReactNode } from 'react';
 import { defaultModelForEngine } from '../config/engine-models.js';
 import type { FunnelConnectionState, FunnelPort } from '../funnel/funnel-port.js';
 import { ChoicesBar } from './ChoicesBar.js';
-import { chatReducer, createInitialChatState } from './chat-state.js';
+import { chatReducer, createInitialChatState, type ChatTurnView } from './chat-state.js';
 import { ConnectionStatus } from './ConnectionStatus.js';
 import { ModeToggle } from './ModeToggle.js';
 import { ModelPicker } from './ModelPicker.js';
@@ -12,13 +19,14 @@ import { ThinkingPanel } from './ThinkingPanel.js';
 import { ToolCallRow } from './ToolCallRow.js';
 import './chat.css';
 
-const DEFAULT_ENGINE_ID = 'mock';
+const DEFAULT_ENGINE_ID = MOCK_ENGINE_ID;
 
 interface ChatPageProps {
   funnel: FunnelPort;
+  headerStatus?: ReactNode;
 }
 
-export function ChatPage({ funnel }: ChatPageProps): ReactElement {
+export function ChatPage({ funnel, headerStatus }: ChatPageProps): ReactElement {
   const [connection, setConnection] = useState<FunnelConnectionState>(funnel.connectionState);
   const [engines, setEngines] = useState<EngineSummary[]>([]);
   const [state, dispatch] = useReducer(
@@ -137,6 +145,7 @@ export function ChatPage({ funnel }: ChatPageProps): ReactElement {
       <header className="noot-header">
         <h1 className="noot-brand">Noot</h1>
         <div className="noot-header-controls">
+          {headerStatus}
           <ConnectionStatus state={connection} />
           <ThemeToggle />
         </div>
@@ -166,27 +175,28 @@ export function ChatPage({ funnel }: ChatPageProps): ReactElement {
           ))}
 
           {state.turn ? (
-            <div className="noot-bubble" data-role="assistant" aria-busy={state.streaming}>
+            <div
+              className="noot-bubble"
+              data-role={CONVERSATION_ROLE_ASSISTANT}
+              aria-busy={state.streaming}
+            >
               <ThinkingPanel text={state.turn.thinking} defaultOpen={state.streaming} />
               {state.turn.tools.map((tool) => (
                 <ToolCallRow key={tool.callId} tool={tool} />
               ))}
               {state.turn.progressLabel ? (
                 <p className="noot-progress" role="status">
-                  {state.turn.progressLabel}
-                  {state.turn.progressFraction !== undefined
-                    ? ` (${Math.round(state.turn.progressFraction * 100)}%)`
-                    : ''}
+                  {progressText(state.turn)}
                 </p>
               ) : null}
-              {state.streaming && state.turn.text ? <p>{state.turn.text}</p> : null}
+              {isTurnOpen(state.turn) && state.turn.text ? <p>{state.turn.text}</p> : null}
               {state.turn.usageLabel ? <p className="noot-usage">{state.turn.usageLabel}</p> : null}
               {state.turn.errorMessage ? (
                 <p className="noot-error" role="alert">
                   {state.turn.errorMessage}
                 </p>
               ) : null}
-              {state.turn.doneReason === 'cancelled' ? (
+              {state.turn.doneReason === DONE_REASON_CANCELLED ? (
                 <p className="noot-status" role="status">
                   Stopped
                 </p>
@@ -252,4 +262,16 @@ export function ChatPage({ funnel }: ChatPageProps): ReactElement {
       </section>
     </div>
   );
+}
+
+function progressText(turn: ChatTurnView): string | undefined {
+  if (turn.progressFraction === undefined) {
+    return turn.progressLabel;
+  }
+  return `${turn.progressLabel} (${Math.round(turn.progressFraction * 100)}%)`;
+}
+
+/** Until done lands, the turn text is not in history yet; a dropped send must not hide it. */
+function isTurnOpen(turn: ChatTurnView): boolean {
+  return turn.doneReason === undefined;
 }

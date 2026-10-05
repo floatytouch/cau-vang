@@ -13,7 +13,7 @@ import {
   type NootEvent,
   type SessionSummaryDto,
 } from '@noot/shared';
-import type { FunnelConnectionState, FunnelPort } from './funnel-port.js';
+import type { FunnelConnectionState, FunnelPort } from '../../src/funnel/funnel-port.js';
 
 export interface MockFunnelScript {
   events?: NootEvent[];

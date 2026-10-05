@@ -2,6 +2,8 @@ import {
   DONE_REASON_COMPLETED,
   ENGINE_TOOL_LOOP_BARE_API,
   ENGINE_TOOL_LOOP_OWN,
+  MOCK_ENGINE_ID,
+  MOCK_HARNESS_ENGINE_ID,
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_TEXT_DELTA,
   NOOT_EVENT_TYPE_THINKING_DELTA,
@@ -27,7 +29,7 @@ import type {
 import { ECHO_MESSAGE_TOOL_NAME, WRITE_SCRATCH_TOOL_NAME } from '../tools/tool-registry.js';
 import { TOOL_RESULTS_INPUT_PREFIX } from '../turn/turn-runner.js';
 
-export const MOCK_ENGINE_ID = 'mock';
+export { MOCK_ENGINE_ID, MOCK_HARNESS_ENGINE_ID };
 
 /** Typed text containing this makes the bare-API mock request the echo_message tool. */
 export const MOCK_USE_ECHO_TOOL_MARKER = 'USE_ECHO_TOOL';
@@ -45,8 +47,6 @@ export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
   sessions: false,
   choices: false,
 };
-
-export const MOCK_HARNESS_ENGINE_ID = 'mock-harness';
 
 export const MOCK_HARNESS_CAPABILITIES: EngineCapabilities = {
   toolLoop: ENGINE_TOOL_LOOP_OWN,

@@ -71,6 +71,10 @@ export class SocketFunnelClient implements FunnelPort {
         resolve();
       };
       const onError = (error: Error) => {
+        // An active socket keeps retrying (backend still booting); only a refused handshake is final.
+        if (socket.active) {
+          return;
+        }
         cleanup();
         this.setConnection('error');
         reject(error);

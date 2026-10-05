@@ -1,4 +1,7 @@
 import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
+  DEFAULT_CONVERSATION_MODE,
   NOOT_EVENT_TYPE_CHOICES,
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_ERROR,
@@ -8,6 +11,7 @@ import {
   NOOT_EVENT_TYPE_THINKING_DELTA,
   NOOT_EVENT_TYPE_TOOL_CALL,
   NOOT_EVENT_TYPE_USAGE,
+  STORED_ROLE_INTERNAL,
   TOOL_CALL_PHASE_END,
   TOOL_CALL_PHASE_UPDATE,
   type ChoiceOption,
@@ -73,7 +77,7 @@ export type ChatAction =
 export function createInitialChatState(
   engineId: string,
   model: string,
-  mode: ConversationMode = 'auto',
+  mode: ConversationMode = DEFAULT_CONVERSATION_MODE,
 ): ChatState {
   return {
     sessionId: undefined,
@@ -119,7 +123,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         draft: '',
         history: [
           ...state.history,
-          { role: 'user', text: action.text, ts: new Date().toISOString() },
+          { role: CONVERSATION_ROLE_USER, text: action.text, ts: new Date().toISOString() },
         ],
         turn: undefined,
         streaming: true,
@@ -169,14 +173,20 @@ function applyEvent(state: ChatState, event: NootEvent): ChatState {
       streaming: false,
       activeTurnId: undefined,
       history: assistantText
-        ? [...next.history, { role: 'assistant', text: assistantText, ts: event.emittedAt }]
+        ? [
+            ...next.history,
+            { role: CONVERSATION_ROLE_ASSISTANT, text: assistantText, ts: event.emittedAt },
+          ]
         : next.history,
     };
   }
   if (event.type === NOOT_EVENT_TYPE_INTERNAL_NOTE) {
     return {
       ...next,
-      history: [...next.history, { role: 'internal', text: event.text, ts: event.emittedAt }],
+      history: [
+        ...next.history,
+        { role: STORED_ROLE_INTERNAL, text: event.text, ts: event.emittedAt },
+      ],
     };
   }
   return next;

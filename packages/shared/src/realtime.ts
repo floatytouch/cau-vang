@@ -1,4 +1,4 @@
-import type { EngineCapabilities } from './conversation/engine-adapter.js';
+import type { ConversationRole, EngineCapabilities } from './conversation/engine-adapter.js';
 import type { NootEvent } from './conversation/events.js';
 import type { ConversationMode } from './conversation/mode.js';
 
@@ -52,8 +52,13 @@ export interface SessionSummaryDto {
   mode: ConversationMode;
 }
 
+/** History role for background-job notes; never sent to an engine. */
+export const STORED_ROLE_INTERNAL = 'internal' as const;
+
+export type HistoryMessageRole = ConversationRole | typeof STORED_ROLE_INTERNAL;
+
 export interface HistoryMessageDto {
-  role: 'user' | 'assistant' | 'internal';
+  role: HistoryMessageRole;
   text: string;
   ts: string;
 }

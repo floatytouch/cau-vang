@@ -1,5 +1,15 @@
-import { CONVERSATION_MODES, type ConversationMode } from '@noot/shared';
+import {
+  CONVERSATION_MODE_AUTO,
+  CONVERSATION_MODE_PLAN,
+  CONVERSATION_MODES,
+  type ConversationMode,
+} from '@noot/shared';
 import type { ReactElement } from 'react';
+
+const MODE_LABELS: Record<ConversationMode, string> = {
+  [CONVERSATION_MODE_AUTO]: 'Auto',
+  [CONVERSATION_MODE_PLAN]: 'Plan',
+};
 
 interface ModeToggleProps {
   mode: ConversationMode;
@@ -20,7 +30,7 @@ export function ModeToggle({ mode, disabled, onChange }: ModeToggleProps): React
       >
         {CONVERSATION_MODES.map((value) => (
           <option key={value} value={value}>
-            {value === 'plan' ? 'Plan' : 'Auto'}
+            {MODE_LABELS[value]}
           </option>
         ))}
       </select>

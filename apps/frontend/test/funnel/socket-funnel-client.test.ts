@@ -11,15 +11,16 @@ interface EmittedFrame {
 /** Stands in for a socket.io-client Socket: records emits and lets the test drive the lifecycle. */
 class FakeSocket {
   connected = false;
+  active = false;
   readonly emitted: EmittedFrame[] = [];
   readonly handshakeAuth: unknown;
-  private readonly listeners = new Map<string, Set<() => void>>();
+  private readonly listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
   constructor(options: { auth: unknown }) {
     this.handshakeAuth = options.auth;
   }
 
-  on(event: string, listener: () => void): this {
+  on(event: string, listener: (...args: unknown[]) => void): this {
     const set = this.listeners.get(event) ?? new Set();
     set.add(listener);
     this.listeners.set(event, set);
@@ -54,7 +55,16 @@ class FakeSocket {
   }
 
   connect(): void {
-    this.serverConnect();
+    this.active = true;
+    if (acceptHandshake) {
+      this.serverConnect();
+    }
+  }
+
+  /** `retrying` mirrors socket.io: a transport failure keeps the socket active, a middleware refusal does not. */
+  serverConnectError(retrying: boolean): void {
+    this.active = retrying;
+    this.fire('connect_error', new Error('handshake failed'));
   }
 
   serverConnect(): void {
@@ -83,9 +93,9 @@ class FakeSocket {
     return true;
   }
 
-  private fire(event: string): void {
+  private fire(event: string, ...args: unknown[]): void {
     for (const listener of [...(this.listeners.get(event) ?? [])]) {
-      listener();
+      listener(...args);
     }
   }
 
@@ -96,6 +106,7 @@ class FakeSocket {
 }
 
 const sockets: FakeSocket[] = [];
+let acceptHandshake = true;
 
 vi.mock('socket.io-client', () => ({
   io: (_url: unknown, options: { auth: unknown }) => {
@@ -107,6 +118,7 @@ vi.mock('socket.io-client', () => ({
 
 afterEach(() => {
   sockets.length = 0;
+  acceptHandshake = true;
 });
 
 async function connectedClient(wsToken?: string): Promise<[SocketFunnelClient, FakeSocket]> {
@@ -157,5 +169,35 @@ describe('SocketFunnelClient', () => {
 
     expect(await sent).toEqual({ ok: true, turnId: 'turn-1' });
     expect(socket.listenerCount('disconnect')).toBe(1);
+  });
+
+  it('keeps waiting through retryable connect errors until the backend comes up', async () => {
+    acceptHandshake = false;
+    const client = new SocketFunnelClient({ wsUrl: '', wsToken: undefined });
+    let settled = false;
+    const connecting = client.connect().finally(() => {
+      settled = true;
+    });
+    const socket = sockets[0]!;
+
+    socket.serverConnectError(true);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(client.connectionState).toBe('error');
+
+    socket.serverConnect();
+    await connecting;
+    expect(client.connectionState).toBe('connected');
+  });
+
+  it('rejects connect when the server refuses the handshake', async () => {
+    acceptHandshake = false;
+    const client = new SocketFunnelClient({ wsUrl: '', wsToken: 'wrong' });
+    const connecting = client.connect();
+
+    sockets[0]!.serverConnectError(false);
+
+    await expect(connecting).rejects.toThrow('handshake failed');
+    expect(client.connectionState).toBe('error');
   });
 });
