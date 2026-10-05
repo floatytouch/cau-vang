@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createMockRun } from '../src/testing/mock-cursor-sdk.js';
+import { createMockRun } from './support/mock-cursor-sdk.js';
 import { TurnControl } from '../src/turn-control.js';
 
 describe('TurnControl', () => {

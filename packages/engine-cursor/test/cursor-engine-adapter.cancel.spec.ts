@@ -9,7 +9,7 @@ import {
   eventTypes,
   TURN_OPTIONS,
   type MockRunScript,
-} from '../src/testing/mock-cursor-sdk.js';
+} from './support/mock-cursor-sdk.js';
 
 const SESSION = { sessionId: 's1', history: [] };
 const THINKING: SDKMessage = { type: 'thinking', agent_id: 'a', run_id: 'r', text: 'slow' };

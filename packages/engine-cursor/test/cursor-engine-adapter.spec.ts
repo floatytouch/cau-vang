@@ -8,7 +8,7 @@ import {
   createMockRun,
   eventTypes,
   TURN_OPTIONS,
-} from '../src/testing/mock-cursor-sdk.js';
+} from './support/mock-cursor-sdk.js';
 
 const SESSION = { sessionId: 's1', history: [] };
 const CONFIG = { cwd: '/tmp', apiKey: 'cursor_test' };
