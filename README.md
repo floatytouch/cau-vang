@@ -11,8 +11,9 @@ packages/shared  Types and constants shared by both apps (@noot/shared)
 ```
 
 `@noot/shared` is the single home of cross-app contracts (`HealthResponse`,
-`WsMessage`, `HEALTH_PATH`, `DEFAULT_BACKEND_PORT`); both apps import it, never
-redefine it.
+`WsMessage`, `HEALTH_PATH`, `DEFAULT_BACKEND_PORT`, the `NootEvent` envelope and
+the `EngineAdapter` contract); both apps import it, never redefine it. See
+`packages/shared/README.md` for the conversation funnel.
 
 ## Requirements
 
@@ -25,7 +26,7 @@ redefine it.
 yarn install
 yarn build   # shared -> backend -> frontend
 yarn lint    # ESLint + Prettier check
-yarn test    # typecheck + Vitest per app, typecheck for shared
+yarn test    # typecheck + Vitest per workspace
 yarn dev     # shared watch + backend on :3000 + Vite dev server (proxies /health)
 ```
 
