@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn workspace @noot/shared build && yarn workspace @noot/engine-claude build && yarn workspace @noot/engine-cursor build && yarn workspace @noot/backend build && yarn workspace @noot/frontend build",
+    "build": "yarn workspace @noot/shared build && yarn workspace @noot/engine-claude build && yarn workspace @noot/engine-cursor build && yarn workspace @noot/engine-lumo build && yarn workspace @noot/backend build && yarn workspace @noot/frontend build",
     "dev": "yarn workspace @noot/shared build && concurrently --names shared,backend,frontend \"yarn workspace @noot/shared dev\" \"yarn workspace @noot/backend dev\" \"yarn workspace @noot/frontend dev\"",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
