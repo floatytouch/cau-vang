@@ -1,6 +1,6 @@
 import { AuthenticationError, type AgentOptions, type SDKMessage } from '@cursor/sdk';
 import { isHarnessEngine, isNootEvent, type ToolBridge } from '@noot/shared';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCursorEngineAdapter } from './cursor-engine-adapter.js';
 import {
   collect,
@@ -43,6 +43,10 @@ const EMPTY_BRIDGE: ToolBridge = {
 };
 
 describe('createCursorEngineAdapter', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('advertises only capabilities it delivers', () => {
     const adapter = createCursorEngineAdapter(CONFIG, { createAgent: async () => ({}) as never });
     expect(isHarnessEngine(adapter.capabilities)).toBe(true);
@@ -89,6 +93,24 @@ describe('createCursorEngineAdapter', () => {
       'm2',
     ]);
     expect(sendCalls[1]?.local?.customTools).toEqual({});
+  });
+
+  it('ignores CURSOR_API_KEY and omits apiKey on Agent.create when the option is absent', async () => {
+    vi.stubEnv('CURSOR_API_KEY', 'env_key_must_be_ignored');
+    const created: AgentOptions[] = [];
+    const { agent } = createMockAgent(async () => createMockRun());
+    const recordCreate = async (options: AgentOptions) => {
+      created.push(options);
+      return agent;
+    };
+    const storedLogin = createCursorEngineAdapter({ cwd: '/tmp' }, { createAgent: recordCreate });
+    const explicitKey = createCursorEngineAdapter(CONFIG, { createAgent: recordCreate });
+
+    await collect(storedLogin.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
+    await collect(explicitKey.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
+
+    expect(created[0]).not.toHaveProperty('apiKey');
+    expect(created[1]?.apiKey).toBe('cursor_test');
   });
 
   it('surfaces the stream status message when a run fails without result.error', async () => {
