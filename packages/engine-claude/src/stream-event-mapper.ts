@@ -72,10 +72,10 @@ export class StreamEventMapper {
     index: number,
     delta: { type: string; text?: string; thinking?: string; partial_json?: string },
   ): NootEvent[] {
-    if (delta.type === NOOT_EVENT_TYPE_TEXT_DELTA && delta.text) {
+    if (delta.type === 'text_delta' && delta.text) {
       return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: delta.text }];
     }
-    if (delta.type === NOOT_EVENT_TYPE_THINKING_DELTA && delta.thinking) {
+    if (delta.type === 'thinking_delta' && delta.thinking) {
       return [
         { ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: delta.thinking },
       ];

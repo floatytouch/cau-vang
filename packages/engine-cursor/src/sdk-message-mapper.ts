@@ -94,7 +94,7 @@ function mapToolUseMessage(
     });
   };
 
-  if (message.status === TOOL_CALL_STATUS_RUNNING) {
+  if (message.status === 'running') {
     if (!toolTracker.started.has(message.call_id)) {
       ensureStarted();
       return events;
