@@ -2,12 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { isApproval, MAX_APPROVAL_WORDS } from './approval.js';
 
 describe('isApproval', () => {
-  it.each(['ok', 'yes', 'go ahead', 'làm đi', 'đồng ý', 'ok làm đi', 'sure please'])(
-    'accepts short approval %j',
-    (text) => {
-      expect(isApproval(text)).toBe(true);
-    },
-  );
+  it.each([
+    'ok',
+    'yes',
+    'go ahead',
+    'làm đi',
+    'đồng ý',
+    'ok làm đi',
+    'sure please',
+    'OK!',
+    'Được rồi anh',
+  ])('accepts short approval %j', (text) => {
+    expect(isApproval(text)).toBe(true);
+  });
 
   it.each([
     'ok?',
@@ -15,6 +22,16 @@ describe('isApproval', () => {
     'please rewrite the whole module and then deploy it carefully',
     '',
     'maybe later',
+    'ok đừng làm',
+    'không được',
+    'ok нет',
+    'ok 不要',
+    'ok ないで',
+    'ok⁇',
+    'ok⁈',
+    'ok﹖',
+    'ok❓',
+    'ok;',
   ])('rejects non-approval %j', (text) => {
     expect(isApproval(text)).toBe(false);
   });

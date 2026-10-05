@@ -77,15 +77,20 @@ const APPROVAL_FILLER_WORDS = new Set([
 
 export const MAX_APPROVAL_WORDS = 8;
 
-const APPROVAL_PUNCTUATION_RE = /[^\w'\s]/g;
-const QUESTION_MARK_CHARS = new Set(['?', '？', '¿', '؟', '⸮', '‽']);
+// Unicode-aware so a word in any script (`ok нет`, `ok 不要`) survives as a non-approval word.
+const APPROVAL_PUNCTUATION_RE = /[^\p{L}\p{N}_'\s]/gu;
+// Every code point whose Unicode name contains QUESTION MARK or INTERROBANG, plus U+2048.
+const QUESTION_MARK_RE =
+  /[\u003F\u00BF\u037E\u055E\u061F\u1367\u1945\u203D\u2047-\u2049\u2753\u2754\u2A7B\u2A7C\u2CFA\u2CFB\u2E18\u2E2E\u2E54\uA60F\uA6F7\uFE16\uFE56\uFF1F\u{11143}\u{1E95F}\u{1F679}-\u{1F67B}\u{1FBC4}\u{E003F}]/u;
 
 /** True only for a short affirmation that unlocks mutating tools for one plan-mode turn. */
 export function isApproval(text: string): boolean {
-  const normalized = stripAccents(text ?? '').replace(/\u2019/g, "'");
-  if ([...normalized].some((char) => QUESTION_MARK_CHARS.has(char))) {
+  const raw = text ?? '';
+  // Checked before NFD: NFD folds U+037E GREEK QUESTION MARK into a plain semicolon.
+  if (QUESTION_MARK_RE.test(raw)) {
     return false;
   }
+  const normalized = stripAccents(raw).replace(/\u2019/g, "'");
   const words = normalized.replace(APPROVAL_PUNCTUATION_RE, ' ').split(/\s+/).filter(Boolean);
   if (words.length === 0 || words.length > MAX_APPROVAL_WORDS) {
     return false;
