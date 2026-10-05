@@ -1,5 +1,5 @@
 import type { HealthResponse } from '@noot/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { fetchHealth } from './fetchHealth.js';
 
 type HealthState =
@@ -7,7 +7,7 @@ type HealthState =
   | { kind: 'ready'; health: HealthResponse }
   | { kind: 'failed'; message: string };
 
-export function HealthStatus() {
+export function HealthStatus(): ReactElement {
   const [state, setState] = useState<HealthState>({ kind: 'loading' });
 
   useEffect(() => {

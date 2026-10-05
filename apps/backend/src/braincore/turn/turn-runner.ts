@@ -1,12 +1,26 @@
 import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
+  DONE_REASON_COMPLETED,
+  DONE_REASON_FAILED,
   isBareApiEngine,
   isHarnessEngine,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  TOOL_CALL_PHASE_END,
+  TOOL_CALL_PHASE_START,
+  TOOL_CALL_STATUS_FAILED,
+  TOOL_CALL_STATUS_SUCCEEDED,
   type ConversationMessage,
   type DoneEvent,
   type EngineAdapter,
   type EngineSession,
   type NootEvent,
+  type ToolCallTerminalStatus,
   type ToolInvocation,
+  type ToolOutcome,
   type TurnInput,
   type TurnOptions,
 } from '@noot/shared';
@@ -53,7 +67,7 @@ export async function* runConversationTurn(params: RunTurnParams): AsyncGenerato
     throw new Error(`Engine ${params.adapter.id} has unknown toolLoop mode`);
   } catch (error) {
     yield relay.relay(failureEvent(relay, error));
-    yield relay.relay({ ...relay.meta(), type: 'done', reason: 'failed' });
+    yield relay.relay({ ...relay.meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_FAILED });
   }
 }
 
@@ -68,7 +82,7 @@ async function* runBareApiToolLoop(
   for (let step = 0; step < MAX_BARE_API_STEPS; step += 1) {
     const engineSession = { sessionId: params.session.sessionId, history: [...history] };
     const outcome = yield* streamStep(params, engineSession, stepInput, relay);
-    if (outcome.done.reason !== 'completed' || outcome.pendingTools.length === 0) {
+    if (outcome.done.reason !== DONE_REASON_COMPLETED || outcome.pendingTools.length === 0) {
       yield relay.relay(outcome.done);
       return;
     }
@@ -78,20 +92,18 @@ async function* runBareApiToolLoop(
       const toolOutcome = await params.toolRegistry.execute(invocation);
       yield relay.relay({
         ...relay.meta(),
-        type: 'tool_call',
-        phase: 'end',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_END,
         callId: invocation.callId,
         name: invocation.name,
-        status: toolOutcome.ok ? 'succeeded' : 'failed',
-        result: toolOutcome.ok ? toolOutcome.result : undefined,
-        error: toolOutcome.ok ? undefined : toolOutcome.error,
+        ...toolCallEndFields(toolOutcome),
       });
       results.push({ callId: invocation.callId, name: invocation.name, outcome: toolOutcome });
     }
 
     history.push(
-      { role: 'user', text: stepInput.text },
-      { role: 'assistant', text: describeStep(outcome) },
+      { role: CONVERSATION_ROLE_USER, text: stepInput.text },
+      { role: CONVERSATION_ROLE_ASSISTANT, text: describeStep(outcome) },
     );
     stepInput = { text: `${TOOL_RESULTS_INPUT_PREFIX}${JSON.stringify(results)}` };
   }
@@ -109,14 +121,14 @@ async function* streamStep(
   const textParts: string[] = [];
   const pendingTools: ToolInvocation[] = [];
   for await (const event of params.adapter.startTurn(session, input, params.options)) {
-    if (event.type === 'done') {
+    if (event.type === NOOT_EVENT_TYPE_DONE) {
       return { done: event, text: textParts.join(''), pendingTools };
     }
     yield relay.relay(event);
-    if (event.type === 'text_delta') {
+    if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
       textParts.push(event.text);
     }
-    if (event.type === 'tool_call' && event.phase === 'start') {
+    if (event.type === NOOT_EVENT_TYPE_TOOL_CALL && event.phase === TOOL_CALL_PHASE_START) {
       pendingTools.push({ callId: event.callId, name: event.name, args: event.args });
     }
   }
@@ -130,10 +142,29 @@ function describeStep(outcome: StepOutcome): string {
   return [outcome.text, ...calls].filter(Boolean).join('\n');
 }
 
+function toolCallEndFields(toolOutcome: ToolOutcome): {
+  status: ToolCallTerminalStatus;
+  result: unknown;
+  error: string | undefined;
+} {
+  if (toolOutcome.ok) {
+    return {
+      status: TOOL_CALL_STATUS_SUCCEEDED,
+      result: toolOutcome.result,
+      error: undefined,
+    };
+  }
+  return {
+    status: TOOL_CALL_STATUS_FAILED,
+    result: undefined,
+    error: toolOutcome.error,
+  };
+}
+
 function failureEvent(relay: TurnEventRelay, error: unknown): NootEvent {
   return {
     ...relay.meta(),
-    type: 'error',
+    type: NOOT_EVENT_TYPE_ERROR,
     code: TURN_FAILED_ERROR_CODE,
     message: error instanceof Error ? error.message : String(error),
     recoverable: false,

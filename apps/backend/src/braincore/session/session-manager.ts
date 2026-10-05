@@ -2,12 +2,17 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
-import type { ConversationMessage } from '@noot/shared';
+import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
+  type ConversationMessage,
+} from '@noot/shared';
 import { DEFAULT_LIVE_SESSION_CAP } from '../../config/app-config.js';
 import { writeFileAtomic } from '../persistence/atomic-write.js';
 import {
   DEFAULT_SESSION_TITLE,
   SESSION_ID_PATTERN,
+  STORED_ROLE_INTERNAL,
   type SessionSummary,
   type StoredMessage,
   type StoredSession,
@@ -129,9 +134,12 @@ export class SessionManager {
   /** History as engines see it; internal notes stay brain-side. */
   conversationMessages(sessionId: string): ConversationMessage[] {
     return this.getHistory(sessionId)
-      .filter((message) => message.role !== 'internal')
+      .filter((message) => message.role !== STORED_ROLE_INTERNAL)
       .map((message) => ({
-        role: message.role === 'assistant' ? 'assistant' : 'user',
+        role:
+          message.role === CONVERSATION_ROLE_ASSISTANT
+            ? CONVERSATION_ROLE_ASSISTANT
+            : CONVERSATION_ROLE_USER,
         text: message.text,
       }));
   }

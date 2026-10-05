@@ -30,7 +30,7 @@ export function describeRunFailure(
 ): TurnErrorDetail {
   const reason = result.error?.message ?? streamFailure ?? 'no reason reported by the SDK';
   return {
-    code: result.error?.code ?? TURN_ERROR_CODES.runFailed,
+    code: result.error?.code ?? TURN_ERROR_CODES.RUN_FAILED,
     message: `Cursor run ${result.id} failed: ${reason}`,
     recoverable: false,
   };
@@ -38,21 +38,21 @@ export function describeRunFailure(
 
 export function describeException(error: unknown): TurnErrorDetail {
   if (error instanceof AuthenticationError) {
-    return { code: TURN_ERROR_CODES.authFailed, message: error.message, recoverable: false };
+    return { code: TURN_ERROR_CODES.AUTH_FAILED, message: error.message, recoverable: false };
   }
   if (error instanceof RateLimitError) {
-    return { code: TURN_ERROR_CODES.rateLimited, message: error.message, recoverable: true };
+    return { code: TURN_ERROR_CODES.RATE_LIMITED, message: error.message, recoverable: true };
   }
   if (error instanceof ConfigurationError) {
-    return { code: TURN_ERROR_CODES.invalidConfig, message: error.message, recoverable: false };
+    return { code: TURN_ERROR_CODES.INVALID_CONFIG, message: error.message, recoverable: false };
   }
   if (error instanceof CursorAgentError) {
     return {
-      code: TURN_ERROR_CODES.engineUnavailable,
+      code: TURN_ERROR_CODES.ENGINE_UNAVAILABLE,
       message: error.message,
       recoverable: error.isRetryable,
     };
   }
   const message = error instanceof Error ? error.message : 'Unknown Cursor adapter failure';
-  return { code: TURN_ERROR_CODES.runFailed, message, recoverable: false };
+  return { code: TURN_ERROR_CODES.RUN_FAILED, message, recoverable: false };
 }

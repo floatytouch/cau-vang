@@ -1,3 +1,8 @@
+import {
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  TOOL_CALL_PHASE_START,
+  TOOL_CALL_STATUS_RUNNING,
+} from '@noot/shared';
 import type { NootEvent } from '@noot/shared';
 
 import { choicesFromAskUserQuestionArgs } from './choices-from-tool.js';
@@ -25,9 +30,9 @@ export class ToolCallRegistry {
     const events: NootEvent[] = [
       {
         ...this.sequence.meta(),
-        type: 'tool_call',
-        phase: 'start',
-        status: 'running',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_START,
+        status: TOOL_CALL_STATUS_RUNNING,
         callId: id,
         name,
         args,

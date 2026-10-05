@@ -8,5 +8,5 @@
     "declarationMap": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.smoke.spec.ts", "src/testing/**"]
+  "exclude": ["test", "**/*.spec.ts"]
 }

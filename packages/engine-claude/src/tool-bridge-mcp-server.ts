@@ -1,4 +1,8 @@
-import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
+import {
+  createSdkMcpServer,
+  tool,
+  type McpSdkServerConfigWithInstance,
+} from '@anthropic-ai/claude-agent-sdk';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolBridge, ToolDefinition, ToolOutcome } from '@noot/shared';
 import { jsonSchemaToZodShape } from './json-schema-to-zod.js';
@@ -41,8 +45,13 @@ function bridgeTool(bridge: ToolBridge, definition: ToolDefinition) {
   );
 }
 
+export interface ToolBridgeMcpServer {
+  serverName: string;
+  config: McpSdkServerConfigWithInstance;
+}
+
 /** No server `instructions`: the CLI injects them into the model context next to the brain's prompt. */
-export function createToolBridgeMcpServer(bridge: ToolBridge) {
+export function createToolBridgeMcpServer(bridge: ToolBridge): ToolBridgeMcpServer {
   const server = createSdkMcpServer({
     name: NOOT_BRAIN_MCP_SERVER_NAME,
     version: BRIDGE_SERVER_VERSION,

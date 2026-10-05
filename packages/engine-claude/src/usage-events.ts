@@ -1,3 +1,4 @@
+import { NOOT_EVENT_TYPE_USAGE } from '@noot/shared';
 import type { ModelUsage } from '@anthropic-ai/claude-agent-sdk';
 import type { UsageEvent } from '@noot/shared';
 
@@ -11,7 +12,7 @@ export function usageEventsFromModelUsage(
 ): UsageEvent[] {
   return Object.entries(modelUsage ?? {}).map(([model, usage]) => ({
     ...sequence.meta(),
-    type: 'usage',
+    type: NOOT_EVENT_TYPE_USAGE,
     engine: CLAUDE_ENGINE_ID,
     model,
     inputTokens: usage.inputTokens,

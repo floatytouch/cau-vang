@@ -1,3 +1,15 @@
+import {
+  DONE_REASON_CANCELLED,
+  DONE_REASON_COMPLETED,
+  DONE_REASON_FAILED,
+  ENGINE_TOOL_LOOP_BARE_API,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_USAGE,
+  TURN_ERROR_CODE_ENGINE_ERROR,
+  TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
+} from '@noot/shared';
 import type {
   EngineAdapter,
   EngineCapabilities,
@@ -21,8 +33,11 @@ import { buildLumoChatMessages } from './recap-window.js';
 
 export const LUMO_ENGINE_ID = 'lumo';
 
+const EMPTY_ANSWER_ERROR_CODE = 'empty_answer';
+const MISSING_CREDENTIALS_ERROR_CODE = 'missing_credentials';
+
 export const LUMO_CAPABILITIES: EngineCapabilities = {
-  toolLoop: 'bareApi',
+  toolLoop: ENGINE_TOOL_LOOP_BARE_API,
   thinkingStream: false,
   sessions: false,
   choices: false,
@@ -95,28 +110,28 @@ class LumoEngineAdapter implements EngineAdapter {
       const result = await client.complete(options.model, messages, abort.signal);
 
       if (abort.signal.aborted) {
-        yield { ...meta(), type: 'done', reason: 'cancelled' };
+        yield { ...meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_CANCELLED };
         return;
       }
 
       if (!result.content) {
         yield {
           ...meta(),
-          type: 'error',
-          code: 'empty_answer',
+          type: NOOT_EVENT_TYPE_ERROR,
+          code: EMPTY_ANSWER_ERROR_CODE,
           message: 'Lumo returned an empty answer.',
           recoverable: false,
         };
-        yield { ...meta(), type: 'done', reason: 'failed' };
+        yield { ...meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_FAILED };
         return;
       }
 
-      yield { ...meta(), type: 'text_delta', text: result.content };
+      yield { ...meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: result.content };
 
       if (result.usage.inputTokens > 0 || result.usage.outputTokens > 0) {
         yield {
           ...meta(),
-          type: 'usage',
+          type: NOOT_EVENT_TYPE_USAGE,
           engine: this.id,
           model: options.model,
           inputTokens: result.usage.inputTokens,
@@ -124,22 +139,22 @@ class LumoEngineAdapter implements EngineAdapter {
         };
       }
 
-      yield { ...meta(), type: 'done', reason: 'completed' };
+      yield { ...meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED };
     } catch (error) {
       if (abort.signal.aborted) {
-        yield { ...meta(), type: 'done', reason: 'cancelled' };
+        yield { ...meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_CANCELLED };
         return;
       }
 
       const mapped = mapTurnError(error);
       yield {
         ...meta(),
-        type: 'error',
+        type: NOOT_EVENT_TYPE_ERROR,
         code: mapped.code,
         message: mapped.message,
         recoverable: mapped.recoverable,
       };
-      yield { ...meta(), type: 'done', reason: 'failed' };
+      yield { ...meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_FAILED };
     } finally {
       if (this.abortByTurn.get(options.turnId) === abort) {
         this.abortByTurn.delete(options.turnId);
@@ -155,20 +170,20 @@ class LumoEngineAdapter implements EngineAdapter {
 function mapTurnError(error: unknown): { code: string; message: string; recoverable: boolean } {
   if (error instanceof LumoCredentialsError) {
     return {
-      code: 'missing_credentials',
+      code: MISSING_CREDENTIALS_ERROR_CODE,
       message: error.message,
       recoverable: false,
     };
   }
   if (error instanceof LumoApiError) {
     return {
-      code: 'engine_unavailable',
+      code: TURN_ERROR_CODE_ENGINE_UNAVAILABLE,
       message: `Lumo could not be reached (local lumo-tamer proxy is down or rejected the request): ${error.message}`,
       recoverable: false,
     };
   }
   return {
-    code: 'engine_error',
+    code: TURN_ERROR_CODE_ENGINE_ERROR,
     message: error instanceof Error ? error.message : String(error),
     recoverable: false,
   };

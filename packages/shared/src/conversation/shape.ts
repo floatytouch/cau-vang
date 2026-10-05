@@ -16,39 +16,39 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export const anyString: FieldRule = {
+export const ANY_STRING: FieldRule = {
   check: (value) => typeof value === 'string',
   expected: 'a string',
 };
 
-export const nonEmptyString: FieldRule = {
+export const NON_EMPTY_STRING: FieldRule = {
   check: (value) => typeof value === 'string' && value.length > 0,
   expected: 'a non-empty string',
 };
 
-export const nonNegativeInteger: FieldRule = {
+export const NON_NEGATIVE_INTEGER: FieldRule = {
   check: (value) => Number.isSafeInteger(value) && (value as number) >= 0,
   expected: 'a non-negative integer',
 };
 
-export const nonNegativeNumber: FieldRule = {
+export const NON_NEGATIVE_NUMBER: FieldRule = {
   check: (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
   expected: 'a finite non-negative number',
 };
 
-export const unitFraction: FieldRule = {
+export const UNIT_FRACTION: FieldRule = {
   check: (value) => typeof value === 'number' && value >= 0 && value <= 1,
   expected: 'a number between 0 and 1',
 };
 
-export const booleanValue: FieldRule = {
+export const BOOLEAN_VALUE: FieldRule = {
   check: (value) => typeof value === 'boolean',
   expected: 'a boolean',
 };
 
 const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
-export const isoTimestamp: FieldRule = {
+export const ISO_TIMESTAMP: FieldRule = {
   // Date.parse alone accepts loose strings like "1"; the pattern pins the format, Date.parse the calendar.
   check: (value) =>
     typeof value === 'string' &&
@@ -57,7 +57,7 @@ export const isoTimestamp: FieldRule = {
   expected: 'an ISO-8601 timestamp with timezone',
 };
 
-export const presentValue: FieldRule = {
+export const PRESENT_VALUE: FieldRule = {
   check: (value) => value !== undefined,
   expected: 'present (any JSON value)',
 };

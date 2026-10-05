@@ -25,7 +25,7 @@ the `EngineAdapter` contract); both apps import it, never redefine it. See
 ```sh
 yarn install
 yarn build   # shared -> backend -> frontend
-yarn lint    # ESLint + Prettier check
+yarn lint    # ESLint + Prettier check + no-tests-under-src guard
 yarn test    # typecheck + Vitest per workspace
 yarn dev     # shared watch + backend on :3000 + Vite dev server (proxies /health)
 ```

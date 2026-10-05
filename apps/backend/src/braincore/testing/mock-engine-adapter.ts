@@ -1,3 +1,14 @@
+import {
+  DONE_REASON_COMPLETED,
+  ENGINE_TOOL_LOOP_BARE_API,
+  ENGINE_TOOL_LOOP_OWN,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  TOOL_CALL_PHASE_START,
+  TOOL_CALL_STATUS_RUNNING,
+} from '@noot/shared';
 import { randomUUID } from 'node:crypto';
 import type {
   EngineAdapter,
@@ -6,6 +17,7 @@ import type {
   NootEvent,
   TurnOptions,
 } from '@noot/shared';
+import { ECHO_MESSAGE_TOOL_NAME } from '../tools/tool-registry.js';
 import { TOOL_RESULTS_INPUT_PREFIX } from '../turn/turn-runner.js';
 
 export const MOCK_ENGINE_ID = 'mock';
@@ -14,7 +26,7 @@ export const MOCK_ENGINE_ID = 'mock';
 export const MOCK_USE_ECHO_TOOL_MARKER = 'USE_ECHO_TOOL';
 
 export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
-  toolLoop: 'bareApi',
+  toolLoop: ENGINE_TOOL_LOOP_BARE_API,
   thinkingStream: true,
   sessions: false,
   choices: false,
@@ -23,7 +35,7 @@ export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
 export const MOCK_HARNESS_ENGINE_ID = 'mock-harness';
 
 export const MOCK_HARNESS_CAPABILITIES: EngineCapabilities = {
-  toolLoop: 'ownToolLoop',
+  toolLoop: ENGINE_TOOL_LOOP_OWN,
   thinkingStream: false,
   sessions: true,
   choices: false,
@@ -47,13 +59,13 @@ export function createMockBareApiAdapter(): EngineAdapter {
         const payload = input.text.slice(TOOL_RESULTS_INPUT_PREFIX.length);
         yield {
           ...meta(session, options, 0),
-          type: 'text_delta',
+          type: NOOT_EVENT_TYPE_TEXT_DELTA,
           text: `tool loop finished: ${payload}`,
         } satisfies NootEvent;
         yield {
           ...meta(session, options, 1),
-          type: 'done',
-          reason: 'completed',
+          type: NOOT_EVENT_TYPE_DONE,
+          reason: DONE_REASON_COMPLETED,
         } satisfies NootEvent;
         return;
       }
@@ -62,32 +74,36 @@ export function createMockBareApiAdapter(): EngineAdapter {
         const callId = randomUUID();
         yield {
           ...meta(session, options, 0),
-          type: 'thinking_delta',
+          type: NOOT_EVENT_TYPE_THINKING_DELTA,
           text: 'selecting echo_message tool',
         } satisfies NootEvent;
         yield {
           ...meta(session, options, 1),
-          type: 'tool_call',
-          phase: 'start',
-          status: 'running',
+          type: NOOT_EVENT_TYPE_TOOL_CALL,
+          phase: TOOL_CALL_PHASE_START,
+          status: TOOL_CALL_STATUS_RUNNING,
           callId,
-          name: 'echo_message',
+          name: ECHO_MESSAGE_TOOL_NAME,
           args: { message: 'from-mock' },
         } satisfies NootEvent;
         yield {
           ...meta(session, options, 2),
-          type: 'done',
-          reason: 'completed',
+          type: NOOT_EVENT_TYPE_DONE,
+          reason: DONE_REASON_COMPLETED,
         } satisfies NootEvent;
         return;
       }
 
       yield {
         ...meta(session, options, 0),
-        type: 'text_delta',
+        type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: input.text,
       } satisfies NootEvent;
-      yield { ...meta(session, options, 1), type: 'done', reason: 'completed' } satisfies NootEvent;
+      yield {
+        ...meta(session, options, 1),
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_COMPLETED,
+      } satisfies NootEvent;
     },
     async cancel() {},
   };
@@ -100,10 +116,14 @@ export function createMockHarnessAdapter(): EngineAdapter {
     async *startTurn(session, input, options) {
       yield {
         ...meta(session, options, 0),
-        type: 'text_delta',
+        type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: `harness:${input.text}`,
       } satisfies NootEvent;
-      yield { ...meta(session, options, 1), type: 'done', reason: 'completed' } satisfies NootEvent;
+      yield {
+        ...meta(session, options, 1),
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_COMPLETED,
+      } satisfies NootEvent;
     },
     async cancel() {},
   };

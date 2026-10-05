@@ -1,3 +1,12 @@
+import {
+  CONVERSATION_ROLE_ASSISTANT,
+  CONVERSATION_ROLE_USER,
+  DONE_REASON_COMPLETED,
+  ENGINE_TOOL_LOOP_OWN,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_INTERNAL_NOTE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+} from '@noot/shared';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +20,12 @@ import {
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
 import { SessionManager } from './session/session-manager.js';
+import {
+  STORED_ROLE_INTERNAL,
+  type SessionSummary,
+  type StoredMessage,
+  type StoredSession,
+} from './session/session-types.js';
 import {
   createMockBareApiAdapter,
   createMockHarnessAdapter,
@@ -74,34 +89,34 @@ export class BraincoreService extends EventEmitter {
     return identity.getBotName();
   }
 
-  listSessions() {
+  listSessions(): SessionSummary[] {
     return this.sessions.listSessions();
   }
 
-  async createSession(engineId: string, model: string, title?: string) {
+  async createSession(engineId: string, model: string, title?: string): Promise<StoredSession> {
     this.engines.get(engineId);
     return this.sessions.createSession(engineId, model, title);
   }
 
-  async deleteSession(sessionId: string) {
+  async deleteSession(sessionId: string): Promise<boolean> {
     return this.sessions.deleteSession(sessionId);
   }
 
-  getHistory(sessionId: string) {
+  getHistory(sessionId: string): StoredMessage[] {
     return this.sessions.getHistory(sessionId);
   }
 
-  async setEngine(sessionId: string, engineId: string, model: string) {
+  async setEngine(sessionId: string, engineId: string, model: string): Promise<StoredSession> {
     this.engines.get(engineId);
     return this.sessions.setEngine(sessionId, engineId, model);
   }
 
   /** A background job's result: stored as `internal`, emitted as its own note turn. */
   async postInternalTurn(sessionId: string, source: string, text: string): Promise<void> {
-    await this.sessions.appendMessage(sessionId, 'internal', text);
+    await this.sessions.appendMessage(sessionId, STORED_ROLE_INTERNAL, text);
     const meta = { sessionId, turnId: randomUUID(), emittedAt: new Date().toISOString() };
-    this.emitEvent({ ...meta, seq: 0, type: 'internal_note', source, text });
-    this.emitEvent({ ...meta, seq: 1, type: 'done', reason: 'completed' });
+    this.emitEvent({ ...meta, seq: 0, type: NOOT_EVENT_TYPE_INTERNAL_NOTE, source, text });
+    this.emitEvent({ ...meta, seq: 1, type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED });
   }
 
   async sendUserMessage(sessionId: string, text: string): Promise<string> {
@@ -113,7 +128,7 @@ export class BraincoreService extends EventEmitter {
     }
     try {
       const history = this.sessions.conversationMessages(sessionId);
-      await this.sessions.appendMessage(sessionId, 'user', text);
+      await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_USER, text);
       const turnId = randomUUID();
       this.activeTurns.set(turnId, adapter);
       try {
@@ -126,14 +141,14 @@ export class BraincoreService extends EventEmitter {
             model: session.model,
             systemPrompt,
             tools:
-              adapter.capabilities.toolLoop === 'ownToolLoop'
+              adapter.capabilities.toolLoop === ENGINE_TOOL_LOOP_OWN
                 ? this.tools.createBridge()
                 : undefined,
           },
           toolRegistry: this.tools,
         });
         if (assistantText.trim()) {
-          await this.sessions.appendMessage(sessionId, 'assistant', assistantText);
+          await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_ASSISTANT, assistantText);
         }
       } finally {
         this.activeTurns.delete(turnId);
@@ -152,7 +167,7 @@ export class BraincoreService extends EventEmitter {
     const textParts: string[] = [];
     for await (const event of runConversationTurn(params)) {
       this.emitEvent(event);
-      if (event.type === 'text_delta') {
+      if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         textParts.push(event.text);
       }
     }
