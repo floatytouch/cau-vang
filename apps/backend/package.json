@@ -8,7 +8,7 @@
     "dev": "tsc -p tsconfig.build.json && concurrently --kill-others --names tsc,node \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --watch-path=dist --enable-source-maps dist/main.js\"",
     "start": "node --enable-source-maps dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "tsc -p tsconfig.json && vitest run"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",
