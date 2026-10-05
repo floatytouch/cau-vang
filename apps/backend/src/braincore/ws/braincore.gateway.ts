@@ -37,7 +37,7 @@ import {
 } from '@noot/shared';
 import type { Server, Socket } from 'socket.io';
 import type { AppConfig } from '../../config/app-config.js';
-import { BRAINCORE_EVENT_CHANNEL, BraincoreService } from '../braincore.service.js';
+import { BraincoreService } from '../braincore.service.js';
 import type { WorkMode } from '../mode/work-mode.js';
 import { handshakeTokenMatches, readHandshakeToken, WS_UNAUTHORIZED_MESSAGE } from './ws-auth.js';
 
@@ -63,7 +63,7 @@ export class BraincoreGateway implements OnGatewayInit {
     this.server.use((socket, next) => {
       this.enforceHandshakeAuth(socket, next);
     });
-    this.braincore.on(BRAINCORE_EVENT_CHANNEL, (event: NootEvent) => {
+    this.braincore.on(WS_NOOT_EVENT, (event: NootEvent) => {
       const message: WsNootEventMessage = {
         type: WS_NOOT_EVENT,
         payload: event,
