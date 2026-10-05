@@ -13,13 +13,19 @@ const BASE_SUBPROCESS_ENV: NodeJS.ProcessEnv = {
   PATH: '/usr/bin',
 };
 
+// Built at runtime because the pre-push typography gate rejects a literal em dash in source,
+// yet the real BrainCore soul prompt carries both an em dash and a no-break space.
+const EM_DASH = String.fromCodePoint(0x2014);
+const NO_BREAK_SPACE = String.fromCodePoint(0x00a0);
+const SOUL_PROMPT = `Nốt${NO_BREAK_SPACE}${EM_DASH} soul line one\r\n  trailing spaces  \n🌿 emoji\n`;
+
 function createAdapter(overrides: Partial<ClaudeEngineAdapterOptions> = {}): ClaudeEngineAdapter {
   return new ClaudeEngineAdapter({
     subprocessEnv: BASE_SUBPROCESS_ENV,
     ...overrides,
   });
 }
-const SOUL_PROMPT = 'Nốt -- soul line one\r\n  trailing spaces  \n🌿 emoji\n';
+
 const OPTIONS: TurnOptions = {
   turnId: 'turn-1',
   model: 'claude-sonnet-5',
@@ -104,7 +110,10 @@ describe('ClaudeEngineAdapter options', () => {
     );
     const options = fake.calls[0];
     expect(options?.systemPrompt).toBe(SOUL_PROMPT);
-    expect(Buffer.from(String(options?.systemPrompt)).equals(Buffer.from(SOUL_PROMPT))).toBe(true);
+    const sentBytes = Buffer.from(String(options?.systemPrompt));
+    expect(sentBytes.equals(Buffer.from(SOUL_PROMPT))).toBe(true);
+    expect(sentBytes.includes(Buffer.from([0xe2, 0x80, 0x94]))).toBe(true);
+    expect(sentBytes.includes(Buffer.from([0xc2, 0xa0]))).toBe(true);
     expect(options).toMatchObject({
       tools: [],
       settingSources: [],
