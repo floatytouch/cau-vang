@@ -12,7 +12,11 @@ import {
   type LumoClientConfigInput,
 } from './lumo-config.js';
 import { LumoApiError, LumoProxyClient } from './lumo-proxy-client.js';
-import { resolveLumoRecapBudgets, type LumoRecapBudgets } from './recap-budget.js';
+import {
+  requirePositiveInteger,
+  resolveLumoRecapBudgets,
+  type LumoRecapBudgets,
+} from './recap-budget.js';
 import { buildLumoChatMessages } from './recap-window.js';
 
 export const LUMO_ENGINE_ID = 'lumo';
@@ -33,6 +37,9 @@ export interface LumoAdapterOptions extends LumoClientConfigInput {
 export function createLumoAdapter(options: LumoAdapterOptions = {}): EngineAdapter {
   const { client, apiKey, baseUrl, budgets, requestTimeoutMs } = options;
   const recapBudgets = resolveLumoRecapBudgets(budgets);
+  if (requestTimeoutMs !== undefined) {
+    requirePositiveInteger('requestTimeoutMs', requestTimeoutMs);
+  }
   // Resolved per turn so a missing key fails that turn, not the process that registers engines.
   const resolveClient = client
     ? () => client

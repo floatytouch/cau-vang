@@ -23,4 +23,15 @@ describe('resolveLumoRecapBudgets', () => {
       charBudget: 100,
     });
   });
+
+  it.each([
+    ['charBudget', Number.NaN],
+    ['charBudget', 0],
+    ['messageLimit', -1],
+    ['messageLimit', 1.5],
+    ['messageChars', '4000' as unknown as number],
+    ['messageChars', 3],
+  ])('fails closed on an invalid %s of %s instead of trimming nothing', (key, value) => {
+    expect(() => resolveLumoRecapBudgets({ [key]: value })).toThrow(RangeError);
+  });
 });

@@ -31,6 +31,10 @@ const adapter = createLumoAdapter({
 });
 ```
 
+Budgets and `requestTimeoutMs` must be positive integers (`messageChars` above 3, the
+`...` marker length); `createLumoAdapter` throws `RangeError` on anything else, so coerce
+string env values to numbers in the Nest config schema.
+
 Credential checks stay per turn: `createLumoAdapter` does not throw when
 `apiKey` is missing; the first `startTurn` yields `error(missing_credentials)`
 then `done(failed)`.

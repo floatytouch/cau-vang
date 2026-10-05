@@ -1,5 +1,9 @@
 import type { ConversationMessage } from '@noot/shared';
-import { DEFAULT_LUMO_RECAP_BUDGETS, type LumoRecapBudgets } from './recap-budget.js';
+import {
+  DEFAULT_LUMO_RECAP_BUDGETS,
+  TRUNCATION_MARKER,
+  type LumoRecapBudgets,
+} from './recap-budget.js';
 
 export interface LumoWireMessage {
   role: 'system' | 'user' | 'assistant';
@@ -51,5 +55,5 @@ function normalizeMessageText(text: string, messageChars: number): string {
   if (collapsed.length <= messageChars) {
     return collapsed;
   }
-  return `${collapsed.slice(0, messageChars - 3)}...`;
+  return `${collapsed.slice(0, messageChars - TRUNCATION_MARKER.length)}${TRUNCATION_MARKER}`;
 }

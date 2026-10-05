@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { isBareApiEngine, isNootEvent } from '@noot/shared';
 import type { NootEvent, TurnOptions } from '@noot/shared';
 import { createLumoAdapter, LUMO_CAPABILITIES } from './lumo-adapter.js';
+import { LUMO_API_KEY_ENV, LUMO_BASE_URL_ENV } from './lumo-config.js';
 import { LumoProxyClient } from './lumo-proxy-client.js';
 
 const SESSION = { sessionId: 's1', history: [] };
@@ -97,6 +98,35 @@ describe('createLumoAdapter smoke through HTTP', () => {
   });
 });
 
+describe('createLumoAdapter recap budgets', () => {
+  it('threads factory budget overrides into the request sent to the proxy', async () => {
+    let sentMessages: unknown;
+    const adapter = createLumoAdapter({
+      budgets: { charBudget: 20, messageLimit: 10, messageChars: 50 },
+      client: new LumoProxyClient({
+        config: { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'k' },
+        fetchImpl: async (_url, init) => {
+          sentMessages = (JSON.parse(String(init?.body)) as { messages: unknown }).messages;
+          return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+        },
+      }),
+    });
+    const history = ['aaaaaaaaaa', 'bbbbbbbbbb', 'cccccccccc'].map((text) => ({
+      role: 'user' as const,
+      text,
+    }));
+
+    await collect(adapter.startTurn({ sessionId: 's1', history }, { text: 'now' }, OPTIONS));
+
+    expect(sentMessages).toEqual([
+      { role: 'system', content: OPTIONS.systemPrompt },
+      { role: 'user', content: 'bbbbbbbbbb' },
+      { role: 'user', content: 'cccccccccc' },
+      { role: 'user', content: 'now' },
+    ]);
+  });
+});
+
 describe('createLumoAdapter failures', () => {
   it('reports a missing API key as one failed turn instead of throwing at creation', async () => {
     const adapter = createLumoAdapter({ apiKey: '   ' });
@@ -106,6 +136,29 @@ describe('createLumoAdapter failures', () => {
     expect(events.map((event) => event.type)).toEqual(['error', 'done']);
     expect(events[0]).toMatchObject({ code: 'missing_credentials', recoverable: false });
     expect(events[1]).toMatchObject({ reason: 'failed' });
+  });
+
+  it('ignores LUMO_* environment variables and still fails the turn without an apiKey', async () => {
+    const saved = {
+      apiKey: process.env[LUMO_API_KEY_ENV],
+      baseUrl: process.env[LUMO_BASE_URL_ENV],
+    };
+    process.env[LUMO_API_KEY_ENV] = 'env-key-must-be-ignored';
+    process.env[LUMO_BASE_URL_ENV] = 'http://127.0.0.1:1/v1';
+    try {
+      const adapter = createLumoAdapter();
+      const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+
+      expect(events.map((event) => event.type)).toEqual(['error', 'done']);
+      expect(events[0]).toMatchObject({ code: 'missing_credentials', recoverable: false });
+    } finally {
+      restoreEnv(LUMO_API_KEY_ENV, saved.apiKey);
+      restoreEnv(LUMO_BASE_URL_ENV, saved.baseUrl);
+    }
+  });
+
+  it('rejects an invalid requestTimeoutMs at creation', () => {
+    expect(() => createLumoAdapter({ apiKey: 'k', requestTimeoutMs: 0 })).toThrow(RangeError);
   });
 
   it('reports a proxy that refuses connections as engine_unavailable', async () => {
@@ -181,4 +234,12 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
     chunks.push(chunk as Buffer);
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
 }
