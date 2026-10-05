@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { DEFAULT_BACKEND_PORT, HEALTH_PATH, shouldLoadEnvFiles } from '@noot/shared';
 import { loadEnv } from 'vite';
-import type { UserConfig } from 'vitest/config';
+import type { ViteUserConfig } from 'vitest/config';
 
 const FRONTEND_CONFIG_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +24,7 @@ export function resolveViteBackendUrl(
   return processBackendUrl ?? fileBackendUrl ?? fallback;
 }
 
-export function createFrontendViteConfig(mode: string): UserConfig {
+export function createFrontendViteConfig(mode: string): ViteUserConfig {
   const envDir = resolveViteEnvDir(mode, FRONTEND_REPO_ROOT);
   const fileEnv = loadEnv(mode, envDir, '');
   const backendUrl = resolveViteBackendUrl(
