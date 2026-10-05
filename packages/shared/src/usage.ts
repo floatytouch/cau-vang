@@ -1,6 +1,7 @@
 /** HTTP contract for durable per-turn usage rollups. */
 
 export const USAGE_DAILY_PATH = '/usage/daily';
+export const USAGE_DAY_QUERY_PARAM = 'day';
 
 /** UTC calendar day as `YYYY-MM-DD`. */
 export const USAGE_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

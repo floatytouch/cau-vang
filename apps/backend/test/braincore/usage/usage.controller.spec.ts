@@ -29,7 +29,7 @@ describe('GET /usage/daily', () => {
   let braincore: BraincoreService;
 
   beforeEach(async () => {
-    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-8-usage-http-'));
+    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-usage-http-'));
     const options: BraincoreServiceOptions = {
       dataDir: tempDataDir,
       identityConfigDir: DEFAULT_IDENTITY_CONFIG_DIR,

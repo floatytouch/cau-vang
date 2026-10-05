@@ -8,7 +8,6 @@ import type {
 } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
 import { ToolRegistry } from '../../../src/braincore/tools/tool-registry.js';
-import { PROGRESS_STAGE } from '../../../src/braincore/usage/progress-stages.js';
 import {
   runConversationTurn,
   TOOL_RESULTS_INPUT_PREFIX,
@@ -98,9 +97,9 @@ describe('runConversationTurn (bare API)', () => {
       'done',
     ]);
     expect(events.map((event) => event.seq)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(events[0]).toMatchObject({ label: PROGRESS_STAGE.STARTING, fraction: 0 });
-    expect(events[3]).toMatchObject({ label: PROGRESS_STAGE.RUNNING_TOOLS });
-    expect(events[6]).toMatchObject({ label: PROGRESS_STAGE.FINISHING, fraction: 1 });
+    expect(events[0]).toMatchObject({ label: 'starting', fraction: 0 });
+    expect(events[3]).toMatchObject({ label: 'running_tools' });
+    expect(events[6]).toMatchObject({ label: 'finishing', fraction: 1 });
     expect(
       events.every((event) => event.turnId === 'turn-1' && event.sessionId === 'session-1'),
     ).toBe(true);
@@ -150,6 +149,6 @@ describe('runConversationTurn (bare API)', () => {
       message: expect.stringMatching(/exceeded/),
     });
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'failed' });
-    expect(events[0]).toMatchObject({ type: 'progress', label: PROGRESS_STAGE.STARTING });
+    expect(events[0]).toMatchObject({ type: 'progress', label: 'starting' });
   });
 });

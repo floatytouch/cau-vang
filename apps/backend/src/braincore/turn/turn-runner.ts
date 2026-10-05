@@ -26,7 +26,12 @@ import {
   type TurnOptions,
 } from '@noot/shared';
 import type { ToolRegistry } from '../tools/tool-registry.js';
-import { PROGRESS_STAGE } from '../usage/progress-stages.js';
+import {
+  PROGRESS_STAGE_FINISHING,
+  PROGRESS_STAGE_RUNNING_TOOLS,
+  PROGRESS_STAGE_STARTING,
+  type ProgressStage,
+} from './progress-stages.js';
 import { TurnEventRelay } from './event-relay.js';
 
 /** Marks a bare-API step input that carries tool results instead of typed text. */
@@ -57,11 +62,11 @@ interface StepOutcome {
  */
 export async function* runConversationTurn(params: RunTurnParams): AsyncGenerator<NootEvent> {
   const relay = new TurnEventRelay(params.session.sessionId, params.options.turnId);
-  yield progress(relay, PROGRESS_STAGE.STARTING, 0);
+  yield progress(relay, PROGRESS_STAGE_STARTING, 0);
   try {
     if (isHarnessEngine(params.adapter.capabilities)) {
       const step = yield* streamStep(params, params.session, params.input, relay);
-      yield progress(relay, PROGRESS_STAGE.FINISHING, 1);
+      yield progress(relay, PROGRESS_STAGE_FINISHING, 1);
       yield relay.relay(step.done);
       return;
     }
@@ -88,12 +93,12 @@ async function* runBareApiToolLoop(
     const engineSession = { sessionId: params.session.sessionId, history: [...history] };
     const outcome = yield* streamStep(params, engineSession, stepInput, relay);
     if (outcome.done.reason !== DONE_REASON_COMPLETED || outcome.pendingTools.length === 0) {
-      yield progress(relay, PROGRESS_STAGE.FINISHING, 1);
+      yield progress(relay, PROGRESS_STAGE_FINISHING, 1);
       yield relay.relay(outcome.done);
       return;
     }
 
-    yield progress(relay, PROGRESS_STAGE.RUNNING_TOOLS);
+    yield progress(relay, PROGRESS_STAGE_RUNNING_TOOLS);
     const results: { callId: string; name: string; outcome: unknown }[] = [];
     for (const invocation of outcome.pendingTools) {
       const toolOutcome = await params.toolRegistry.execute(invocation);
@@ -142,7 +147,7 @@ async function* streamStep(
   throw new Error(`Engine ${params.adapter.id} ended its stream without a done event`);
 }
 
-function progress(relay: TurnEventRelay, label: string, fraction?: number): NootEvent {
+function progress(relay: TurnEventRelay, label: ProgressStage, fraction?: number): NootEvent {
   return relay.relay({
     ...relay.meta(),
     type: NOOT_EVENT_TYPE_PROGRESS,

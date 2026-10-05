@@ -14,7 +14,6 @@ import {
   MOCK_USAGE_INPUT_TOKENS,
   MOCK_USAGE_OUTPUT_TOKENS,
 } from '../../../src/braincore/testing/mock-engine-adapter.js';
-import { PROGRESS_STAGE } from '../../../src/braincore/usage/progress-stages.js';
 
 async function startService(dataDir: string): Promise<BraincoreService> {
   const service = new BraincoreService({
@@ -26,12 +25,12 @@ async function startService(dataDir: string): Promise<BraincoreService> {
   return service;
 }
 
-describe('NV-8 usage + progress funnel', () => {
+describe('usage + progress funnel', () => {
   let tempDataDir: string;
   let service: BraincoreService;
 
   beforeEach(async () => {
-    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-8-funnel-'));
+    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-usage-funnel-'));
     service = await startService(tempDataDir);
   });
 
@@ -58,7 +57,7 @@ describe('NV-8 usage + progress funnel', () => {
     ]);
     expect(collected[0]).toMatchObject({
       type: 'progress',
-      label: PROGRESS_STAGE.STARTING,
+      label: 'starting',
       fraction: 0,
       turnId,
     });
@@ -72,7 +71,7 @@ describe('NV-8 usage + progress funnel', () => {
     });
     expect(collected[3]).toMatchObject({
       type: 'progress',
-      label: PROGRESS_STAGE.FINISHING,
+      label: 'finishing',
       fraction: 1,
     });
 

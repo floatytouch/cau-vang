@@ -1,5 +1,7 @@
 import { USAGE_DAY_PATTERN } from '@noot/shared';
 
+const ISO_DAY_LENGTH = 'YYYY-MM-DD'.length;
+
 /** Missing day means today (UTC); anything else must be a real `YYYY-MM-DD` calendar day. */
 export function normalizeUsageDay(day: string | undefined, now = new Date()): string {
   if (day === undefined || day.trim() === '') {
@@ -19,7 +21,7 @@ export function utcDayOf(isoTimestamp: string): string {
       `usage record ts is not a valid ISO timestamp: ${JSON.stringify(isoTimestamp)}`,
     );
   }
-  return new Date(millis).toISOString().slice(0, 10);
+  return new Date(millis).toISOString().slice(0, ISO_DAY_LENGTH);
 }
 
 function isCalendarDay(day: string): boolean {

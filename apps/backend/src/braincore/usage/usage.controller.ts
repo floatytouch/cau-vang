@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
-import { USAGE_DAILY_PATH, type DailyUsageResponse } from '@noot/shared';
+import { USAGE_DAILY_PATH, USAGE_DAY_QUERY_PARAM, type DailyUsageResponse } from '@noot/shared';
 import { BraincoreService } from '../braincore.service.js';
 import { normalizeUsageDay } from './usage-day.js';
 
@@ -8,7 +8,7 @@ export class UsageController {
   constructor(private readonly braincore: BraincoreService) {}
 
   @Get()
-  async dailyTotals(@Query('day') day?: string): Promise<DailyUsageResponse> {
+  async dailyTotals(@Query(USAGE_DAY_QUERY_PARAM) day?: string): Promise<DailyUsageResponse> {
     return this.braincore.usage.summarizeDay(parseDayQuery(day));
   }
 }

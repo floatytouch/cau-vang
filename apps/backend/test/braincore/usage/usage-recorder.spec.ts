@@ -62,7 +62,7 @@ describe('UsageRecorder', () => {
   let logPath: string;
 
   beforeEach(async () => {
-    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-8-usage-'));
+    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-usage-'));
     recorder = new UsageRecorder({ dataDir: tempDataDir });
     logPath = path.join(tempDataDir, USAGE_LOG_FILE_NAME);
   });
