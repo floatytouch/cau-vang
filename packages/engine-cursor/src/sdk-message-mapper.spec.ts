@@ -96,4 +96,28 @@ describe('mapSdkMessageToNootEvents', () => {
 
     expect(events[0]).toMatchObject({ type: 'text_delta', text: 'hello' });
   });
+
+  it('keeps the SDK failure text on a failed tool call', () => {
+    const events = mapSdkMessageToNootEvents(
+      {
+        type: 'tool_call',
+        agent_id: 'a1',
+        run_id: 'r1',
+        call_id: 'c2',
+        name: 'shell',
+        status: 'error',
+        result: 'command not found: foo',
+      },
+      new TurnEventBuilder('session-1', 'turn-1'),
+      model,
+      createToolCallTracker(),
+    );
+
+    expect(events.map((event) => event.type)).toEqual(['tool_call', 'tool_call']);
+    expect(events[1]).toMatchObject({
+      phase: 'end',
+      status: 'failed',
+      error: 'command not found: foo',
+    });
+  });
 });

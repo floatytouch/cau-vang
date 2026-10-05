@@ -1,145 +1,160 @@
-import type { Run, SDKAgent, SDKMessage } from '@cursor/sdk';
-import { isHarnessEngine, isNootEvent } from '@noot/shared';
+import { AuthenticationError, type AgentOptions, type SDKMessage } from '@cursor/sdk';
+import { isHarnessEngine, isNootEvent, type ToolBridge } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
 import { createCursorEngineAdapter } from './cursor-engine-adapter.js';
+import {
+  collect,
+  createMockAgent,
+  createMockRun,
+  eventTypes,
+  TURN_OPTIONS,
+} from './testing/mock-cursor-sdk.js';
 
-async function collect(stream: AsyncIterable<unknown>): Promise<unknown[]> {
-  const events: unknown[] = [];
-  for await (const event of stream) {
-    events.push(event);
-  }
-  return events;
-}
+const SESSION = { sessionId: 's1', history: [] };
+const CONFIG = { cwd: '/tmp', apiKey: 'cursor_test' };
 
-function createMockRun(messages: SDKMessage[]): Run {
-  let status: Run['status'] = 'running';
-  let cancelCalls = 0;
+const THINKING: SDKMessage = { type: 'thinking', agent_id: 'a', run_id: 'r', text: 'hmm' };
+const TEXT: SDKMessage = {
+  type: 'assistant',
+  agent_id: 'a',
+  run_id: 'r',
+  message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] },
+};
+const TOOL_RUNNING: SDKMessage = {
+  type: 'tool_call',
+  agent_id: 'a',
+  run_id: 'r',
+  call_id: 'c1',
+  name: 'shell',
+  status: 'running',
+  args: { command: 'ls' },
+};
+const USAGE = {
+  inputTokens: 10,
+  outputTokens: 5,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
+  totalTokens: 15,
+};
 
-  const run: Run = {
-    id: 'run-1',
-    agentId: 'agent-1',
-    status,
-    supports: (operation) =>
-      operation === 'cancel' || operation === 'stream' || operation === 'wait',
-    unsupportedReason: () => undefined,
-    async *stream() {
-      for (const message of messages) {
-        yield message;
-      }
-    },
-    conversation: async () => [],
-    wait: async () => {
-      const terminalStatus = cancelCalls > 0 ? 'cancelled' : 'finished';
-      status = terminalStatus;
-      return {
-        id: 'run-1',
-        status: terminalStatus,
-        usage: {
-          inputTokens: 10,
-          outputTokens: 5,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          totalTokens: 15,
-        },
-      };
-    },
-    cancel: async () => {
-      cancelCalls += 1;
-      status = 'cancelled';
-    },
-    onDidChangeStatus: () => () => {},
-  };
-
-  return run;
-}
+const EMPTY_BRIDGE: ToolBridge = {
+  definitions: [],
+  execute: async () => ({ ok: true, result: null }),
+};
 
 describe('createCursorEngineAdapter', () => {
-  it('advertises harness capabilities with ownToolLoop', () => {
-    const adapter = createCursorEngineAdapter(
-      { cwd: '/tmp', apiKey: 'cursor_test' },
-      { createAgent: async () => ({}) as SDKAgent },
-    );
+  it('advertises only capabilities it delivers', () => {
+    const adapter = createCursorEngineAdapter(CONFIG, { createAgent: async () => ({}) as never });
     expect(isHarnessEngine(adapter.capabilities)).toBe(true);
     expect(adapter.capabilities.toolLoop).toBe('ownToolLoop');
+    expect(adapter.capabilities.choices).toBe(false);
   });
 
-  it('streams mapped events and ends with done', async () => {
-    const messages: SDKMessage[] = [
-      { type: 'thinking', agent_id: 'a', run_id: 'r', text: 'hmm' },
-      {
-        type: 'assistant',
-        agent_id: 'a',
-        run_id: 'r',
-        message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] },
-      },
-    ];
-
-    const adapter = createCursorEngineAdapter(
-      { cwd: '/tmp', apiKey: 'cursor_test' },
-      {
-        createAgent: async () =>
-          ({
-            send: async () => createMockRun(messages),
-            close: () => {},
-          }) as unknown as SDKAgent,
-      },
+  it('streams mapped events in seq order and ends with done(completed)', async () => {
+    const { agent } = createMockAgent(async () =>
+      createMockRun({ messages: [THINKING, TEXT], result: { usage: USAGE } }),
     );
+    const adapter = createCursorEngineAdapter(CONFIG, { createAgent: async () => agent });
 
-    const events = await collect(
-      adapter.startTurn(
-        { sessionId: 's1', history: [] },
-        { text: 'hi' },
-        {
-          turnId: 't1',
-          model: 'composer-2.5',
-          systemPrompt: 'You are Not.',
-        },
-      ),
-    );
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
 
     expect(events.every(isNootEvent)).toBe(true);
-    expect(events.map((event) => (event as { type: string }).type)).toEqual([
-      'thinking_delta',
-      'text_delta',
-      'usage',
-      'done',
-    ]);
+    expect(eventTypes(events)).toEqual(['thinking_delta', 'text_delta', 'usage', 'done']);
+    expect(events.map((event) => event.seq)).toEqual([0, 1, 2, 3]);
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'completed' });
   });
 
-  it('cancel ends the turn with done(cancelled)', async () => {
-    const slowMessages: SDKMessage[] = [
-      { type: 'thinking', agent_id: 'a', run_id: 'r', text: 'slow' },
-    ];
+  it('sends model and tools on every turn and creates one agent per session', async () => {
+    const created: AgentOptions[] = [];
+    const { agent, sendCalls } = createMockAgent(async () => createMockRun());
+    const adapter = createCursorEngineAdapter(CONFIG, {
+      createAgent: async (options) => {
+        created.push(options);
+        return agent;
+      },
+    });
 
+    await Promise.all([
+      collect(adapter.startTurn(SESSION, { text: 'a' }, { ...TURN_OPTIONS, tools: EMPTY_BRIDGE })),
+      collect(adapter.startTurn(SESSION, { text: 'b' }, { ...TURN_OPTIONS, turnId: 't2' })),
+    ]);
+    await collect(
+      adapter.startTurn(SESSION, { text: 'c' }, { ...TURN_OPTIONS, turnId: 't3', model: 'm2' }),
+    );
+
+    expect(created).toHaveLength(1);
+    expect(sendCalls.map((options) => options?.model?.id)).toEqual([
+      'composer-2.5',
+      'composer-2.5',
+      'm2',
+    ]);
+    expect(sendCalls[1]?.local?.customTools).toEqual({});
+  });
+
+  it('surfaces the stream status message when a run fails without result.error', async () => {
+    const statusError: SDKMessage = {
+      type: 'status',
+      agent_id: 'a',
+      run_id: 'r',
+      status: 'ERROR',
+      message: 'custom system prompt not enabled for this plan',
+    };
+    const { agent } = createMockAgent(async () =>
+      createMockRun({ messages: [statusError], result: { status: 'error' } }),
+    );
+    const adapter = createCursorEngineAdapter(CONFIG, { createAgent: async () => agent });
+
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
+
+    expect(eventTypes(events)).toEqual(['error', 'done']);
+    expect(events[0]).toMatchObject({
+      code: 'engine_error',
+      message: expect.stringContaining('custom system prompt not enabled for this plan'),
+    });
+    expect(events.at(-1)).toMatchObject({ reason: 'failed' });
+  });
+
+  it('reports a failed agent creation without leaking the key and retries next turn', async () => {
+    let attempts = 0;
+    const { agent } = createMockAgent(async () => createMockRun());
     const adapter = createCursorEngineAdapter(
-      { cwd: '/tmp', apiKey: 'cursor_test', turnTimeoutMs: 60_000 },
+      { cwd: '/tmp', apiKey: 'key_must_not_leak' },
       {
-        createAgent: async () =>
-          ({
-            send: async () => createMockRun(slowMessages),
-            close: () => {},
-          }) as unknown as SDKAgent,
+        createAgent: async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw new AuthenticationError('Invalid API key');
+          }
+          return agent;
+        },
       },
     );
 
-    const stream = adapter.startTurn(
-      { sessionId: 's2', history: [] },
-      { text: 'go' },
-      {
-        turnId: 't-cancel',
-        model: 'composer-2.5',
-        systemPrompt: 'You are Not.',
-      },
+    const failed = await collect(adapter.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
+    const retried = await collect(
+      adapter.startTurn(SESSION, { text: 'hi' }, { ...TURN_OPTIONS, turnId: 't2' }),
     );
 
-    const iterator = stream[Symbol.asyncIterator]();
-    const first = await iterator.next();
-    expect(first.value).toMatchObject({ type: 'thinking_delta' });
+    expect(failed[0]).toMatchObject({ type: 'error', code: 'auth_failed' });
+    expect(failed.at(-1)).toMatchObject({ type: 'done', reason: 'failed' });
+    expect(JSON.stringify(failed)).not.toContain('key_must_not_leak');
+    expect(retried.at(-1)).toMatchObject({ type: 'done', reason: 'completed' });
+  });
 
-    await adapter.cancel('t-cancel');
-    const rest = await collect({ [Symbol.asyncIterator]: () => iterator });
+  it('closes an open tool call and cancels the run when the stream throws mid-tool', async () => {
+    const run = createMockRun({
+      messages: [TOOL_RUNNING],
+      streamError: new Error('transport dropped'),
+    });
+    const { agent } = createMockAgent(async () => run);
+    const adapter = createCursorEngineAdapter(CONFIG, { createAgent: async () => agent });
 
-    expect(rest.at(-1)).toMatchObject({ type: 'done', reason: 'cancelled' });
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, TURN_OPTIONS));
+
+    expect(eventTypes(events)).toEqual(['tool_call', 'error', 'tool_call', 'done']);
+    expect(events[2]).toMatchObject({ phase: 'end', status: 'failed', callId: 'c1' });
+    expect(events[1]).toMatchObject({ message: 'transport dropped' });
+    expect(events.at(-1)).toMatchObject({ reason: 'failed' });
+    expect(run.cancelCalls).toBe(1);
   });
 });

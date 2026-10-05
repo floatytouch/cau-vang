@@ -1,13 +1,40 @@
-import { Agent, CursorAgentError, type AgentOptions, type Run, type SDKAgent } from '@cursor/sdk';
-import type { EngineAdapter, EngineSession, NootEvent, TurnInput, TurnOptions } from '@noot/shared';
+import {
+  Agent,
+  type AgentOptions,
+  type RunResult,
+  type SDKAgent,
+  type SendOptions,
+  type TokenUsage,
+} from '@cursor/sdk';
+import type {
+  DoneReason,
+  EngineAdapter,
+  EngineSession,
+  NootEvent,
+  TurnInput,
+  TurnOptions,
+} from '@noot/shared';
 import {
   CURSOR_ENGINE_CAPABILITIES,
   CURSOR_ENGINE_ID,
   DEFAULT_TURN_TIMEOUT_MS,
+  TURN_ERROR_CODES,
 } from './constants.js';
-import { resolveCursorApiKeyOptional } from './resolve-api-key.js';
-import { createToolCallTracker, mapSdkMessageToNootEvents } from './sdk-message-mapper.js';
+import { resolveCursorApiKey } from './resolve-api-key.js';
+import {
+  closeOpenToolCalls,
+  createToolCallTracker,
+  mapSdkMessageToNootEvents,
+  type ToolCallTracker,
+} from './sdk-message-mapper.js';
 import { toolBridgeToCustomTools } from './tool-bridge-custom-tools.js';
+import {
+  describeException,
+  describeRunFailure,
+  statusFailureMessage,
+  type TurnErrorDetail,
+} from './turn-errors.js';
+import { TurnControl } from './turn-control.js';
 import { TurnEventBuilder } from './turn-event-builder.js';
 
 export interface CursorEngineAdapterConfig {
@@ -21,14 +48,15 @@ export interface CursorEngineAdapterDeps {
   createAgent: (options: AgentOptions) => Promise<SDKAgent>;
 }
 
-interface ActiveTurn {
-  run: Run;
-  cancelRequested: boolean;
+interface TurnContext {
+  control: TurnControl;
+  builder: TurnEventBuilder;
+  options: TurnOptions;
+  toolTracker: ToolCallTracker;
 }
 
-interface SessionEntry {
-  agent: SDKAgent;
-}
+/** A late agent stays in the session cache for the next turn; there is nothing to undo. */
+const keepCachedAgent = async (): Promise<void> => {};
 
 const defaultDeps: CursorEngineAdapterDeps = {
   createAgent: (options) => Agent.create(options),
@@ -39,8 +67,19 @@ export function createCursorEngineAdapter(
   deps: CursorEngineAdapterDeps = defaultDeps,
 ): EngineAdapter {
   const turnTimeoutMs = config.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS;
-  const sessions = new Map<string, SessionEntry>();
-  const activeTurns = new Map<string, ActiveTurn>();
+  const sessionAgents = new Map<string, Promise<SDKAgent>>();
+  const activeTurns = new Map<string, TurnControl>();
+
+  const sessionAgent = (sessionId: string, options: TurnOptions): Promise<SDKAgent> => {
+    const existing = sessionAgents.get(sessionId);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created = deps.createAgent(buildAgentOptions(config, options));
+    sessionAgents.set(sessionId, created);
+    created.catch(() => sessionAgents.delete(sessionId));
+    return created;
+  };
 
   return {
     id: CURSOR_ENGINE_ID,
@@ -51,148 +90,138 @@ export function createCursorEngineAdapter(
       input: TurnInput,
       options: TurnOptions,
     ): AsyncIterable<NootEvent> {
+      const control = new TurnControl();
       const builder = new TurnEventBuilder(session.sessionId, options.turnId);
       const toolTracker = createToolCallTracker();
-      let doneReason: 'completed' | 'cancelled' | 'failed' = 'completed';
-
-      const emitError = (code: string, message: string, recoverable: boolean): NootEvent => ({
-        ...builder.meta(),
-        type: 'error',
-        code,
-        message,
-        recoverable,
-      });
-
-      const emitDone = (reason: 'completed' | 'cancelled' | 'failed'): NootEvent => ({
-        ...builder.meta(),
-        type: 'done',
-        reason,
-      });
-
-      let run: Run | undefined;
-      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      activeTurns.set(options.turnId, control);
+      const timeoutHandle = setTimeout(() => control.expire(), turnTimeoutMs);
+      let doneReason: DoneReason = 'failed';
 
       try {
-        const agent = await getOrCreateSessionAgent(
-          sessions,
-          session.sessionId,
-          config,
-          deps,
-          options,
-        );
-        run = await agent.send(input.text, buildSendOptions(options));
-
-        const active: ActiveTurn = { run, cancelRequested: false };
-        activeTurns.set(options.turnId, active);
-
-        timeoutHandle = setTimeout(() => {
-          void run?.cancel();
-        }, turnTimeoutMs);
-
-        let usageFromStream = false;
-
-        for await (const message of run.stream()) {
-          if (active.cancelRequested) {
-            doneReason = 'cancelled';
-            break;
-          }
-          const mapped = mapSdkMessageToNootEvents(message, builder, options.model, toolTracker);
-          for (const event of mapped) {
-            if (event.type === 'usage') {
-              usageFromStream = true;
-            }
-            yield event;
-          }
-        }
-
-        const result = await run.wait();
-        if (active.cancelRequested || result.status === 'cancelled' || run.status === 'cancelled') {
-          doneReason = 'cancelled';
-        } else if (result.status === 'error') {
-          doneReason = 'failed';
-          yield emitError(
-            result.error?.code ?? 'engine_error',
-            result.error?.message ?? 'Cursor run failed',
-            false,
-          );
-        }
-
-        if (!usageFromStream && result.usage) {
-          yield {
-            ...builder.meta(),
-            type: 'usage',
-            engine: CURSOR_ENGINE_ID,
-            model: options.model,
-            inputTokens: result.usage.inputTokens,
-            outputTokens: result.usage.outputTokens,
-            cacheReadTokens: result.usage.cacheReadTokens,
-            cacheWriteTokens: result.usage.cacheWriteTokens,
-          };
-        }
+        const agentCreation = sessionAgent(session.sessionId, options);
+        const context = { control, builder, options, toolTracker };
+        doneReason = yield* runTurn(agentCreation, input, context);
       } catch (error) {
-        doneReason = 'failed';
-        if (error instanceof CursorAgentError) {
-          yield emitError('engine_unavailable', error.message, error.isRetryable);
-        } else if (error instanceof Error) {
-          yield emitError('engine_error', error.message, false);
-        } else {
-          yield emitError('engine_error', 'Unknown Cursor adapter failure', false);
-        }
+        yield errorEvent(builder, describeException(error));
       } finally {
-        if (timeoutHandle !== undefined) {
-          clearTimeout(timeoutHandle);
-        }
+        clearTimeout(timeoutHandle);
         activeTurns.delete(options.turnId);
-        yield emitDone(doneReason);
+        // Runs before any yield: an abandoned consumer never resumes this generator.
+        await control.stopRun();
+        yield* closeOpenToolCalls(builder, toolTracker);
+        if (control.stopFailure !== undefined) {
+          yield errorEvent(builder, {
+            code: TURN_ERROR_CODES.cancelFailed,
+            message: control.stopFailure,
+            recoverable: false,
+          });
+        }
+        yield { ...builder.meta(), type: 'done', reason: doneReason };
       }
     },
 
     async cancel(turnId: string): Promise<void> {
-      const active = activeTurns.get(turnId);
-      if (active === undefined) {
-        return;
-      }
-      active.cancelRequested = true;
-      if (active.run.supports('cancel')) {
-        await active.run.cancel();
-      }
+      await activeTurns.get(turnId)?.requestCancel();
     },
   };
 }
 
-async function getOrCreateSessionAgent(
-  sessions: Map<string, SessionEntry>,
-  sessionId: string,
-  config: CursorEngineAdapterConfig,
-  deps: CursorEngineAdapterDeps,
-  options: TurnOptions,
-): Promise<SDKAgent> {
-  const existing = sessions.get(sessionId);
-  if (existing !== undefined) {
-    return existing.agent;
+async function* runTurn(
+  agentCreation: Promise<SDKAgent>,
+  input: TurnInput,
+  context: TurnContext,
+): AsyncGenerator<NootEvent, DoneReason> {
+  const { control, builder, options, toolTracker } = context;
+  const agent = await control.unlessStopped(agentCreation, keepCachedAgent);
+  if (agent === undefined) {
+    return yield* finishTurn(context, undefined);
+  }
+  const sending = agent.send(input.text, buildSendOptions(options));
+  const run = await control.unlessStopped(sending, (lateRun) => lateRun.cancel());
+  if (run === undefined) {
+    return yield* finishTurn(context, undefined);
+  }
+  await control.attach(run);
+
+  let usageFromStream = false;
+  let streamFailure: string | undefined;
+  for await (const message of run.stream()) {
+    if (message.type === 'status') {
+      streamFailure = statusFailureMessage(message) ?? streamFailure;
+    }
+    for (const event of mapSdkMessageToNootEvents(message, builder, options.model, toolTracker)) {
+      usageFromStream ||= event.type === 'usage';
+      yield event;
+    }
   }
 
-  const apiKey = resolveCursorApiKeyOptional(config.apiKey);
-  const customTools = options.tools ? toolBridgeToCustomTools(options.tools) : undefined;
-  const agent = await deps.createAgent({
+  const result = await run.wait();
+  if (!usageFromStream && result.usage !== undefined) {
+    yield usageEvent(builder, options.model, result.usage);
+  }
+  return yield* finishTurn(context, { result, streamFailure });
+}
+
+interface RunOutcome {
+  result: RunResult;
+  streamFailure: string | undefined;
+}
+
+async function* finishTurn(
+  context: TurnContext,
+  outcome: RunOutcome | undefined,
+): AsyncGenerator<NootEvent, DoneReason> {
+  const { control, builder, options } = context;
+  if (control.timedOut) {
+    yield errorEvent(builder, {
+      code: TURN_ERROR_CODES.timeout,
+      message: `Cursor turn ${options.turnId} exceeded the turn timeout and was cancelled`,
+      recoverable: false,
+    });
+    return 'failed';
+  }
+  if (control.cancelRequested || outcome === undefined || outcome.result.status === 'cancelled') {
+    return 'cancelled';
+  }
+  if (outcome.result.status === 'error') {
+    yield errorEvent(builder, describeRunFailure(outcome.result, outcome.streamFailure));
+    return 'failed';
+  }
+  return 'completed';
+}
+
+function errorEvent(builder: TurnEventBuilder, detail: TurnErrorDetail): NootEvent {
+  return { ...builder.meta(), type: 'error', ...detail };
+}
+
+function usageEvent(builder: TurnEventBuilder, model: string, usage: TokenUsage): NootEvent {
+  return {
+    ...builder.meta(),
+    type: 'usage',
+    engine: CURSOR_ENGINE_ID,
+    model,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens,
+  };
+}
+
+function buildAgentOptions(config: CursorEngineAdapterConfig, options: TurnOptions): AgentOptions {
+  const apiKey = resolveCursorApiKey(config.apiKey);
+  return {
     ...(apiKey !== undefined ? { apiKey } : {}),
     model: { id: options.model },
     systemPrompt: options.systemPrompt,
-    tools: customTools ? ['mcp'] : undefined,
-    local: {
-      cwd: config.cwd,
-      settingSources: [],
-      customTools,
-    },
-  });
-  sessions.set(sessionId, { agent });
-  return agent;
+    tools: options.tools ? ['mcp'] : undefined,
+    local: { cwd: config.cwd, settingSources: [] },
+  };
 }
 
-function buildSendOptions(options: TurnOptions) {
-  const customTools = options.tools ? toolBridgeToCustomTools(options.tools) : undefined;
-  if (customTools === undefined) {
-    return undefined;
-  }
-  return { local: { customTools } };
+/** Model and tools go on every send so a later turn never runs on the first turn's choices. */
+function buildSendOptions(options: TurnOptions): SendOptions {
+  return {
+    model: { id: options.model },
+    local: { customTools: options.tools ? toolBridgeToCustomTools(options.tools) : {} },
+  };
 }

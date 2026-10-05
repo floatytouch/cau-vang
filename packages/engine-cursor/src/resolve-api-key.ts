@@ -1,9 +1,9 @@
 /**
- * Cursor credential precedence for explicit adapter config: non-empty explicit
- * option, then CURSOR_API_KEY. When both are absent, omit apiKey on Agent.create
- * so @cursor/sdk can use stored login from Cursor.auth.login().
+ * Cursor credential precedence: non-empty explicit option, then CURSOR_API_KEY.
+ * Undefined means omit apiKey on Agent.create so @cursor/sdk uses the stored
+ * login from Cursor.auth.login().
  */
-export function resolveCursorApiKeyOptional(explicit?: string): string | undefined {
+export function resolveCursorApiKey(explicit?: string): string | undefined {
   if (explicit !== undefined) {
     if (explicit.length === 0) {
       throw new Error('Cursor API key was explicitly set to an empty string');
@@ -17,14 +17,4 @@ export function resolveCursorApiKeyOptional(explicit?: string): string | undefin
   }
 
   return undefined;
-}
-
-export function resolveCursorApiKey(explicit?: string): string {
-  const resolved = resolveCursorApiKeyOptional(explicit);
-  if (resolved !== undefined) {
-    return resolved;
-  }
-  throw new Error(
-    'Cursor API key missing: set CURSOR_API_KEY, pass apiKey to the adapter, or run Cursor SDK login',
-  );
 }

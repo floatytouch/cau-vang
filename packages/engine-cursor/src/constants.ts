@@ -8,5 +8,15 @@ export const CURSOR_ENGINE_CAPABILITIES: EngineCapabilities = {
   toolLoop: 'ownToolLoop',
   thinkingStream: true,
   sessions: true,
-  choices: true,
+  choices: false,
 };
+
+export const TURN_ERROR_CODES = {
+  timeout: 'timeout',
+  runFailed: 'engine_error',
+  engineUnavailable: 'engine_unavailable',
+  authFailed: 'auth_failed',
+  rateLimited: 'rate_limited',
+  invalidConfig: 'invalid_config',
+  cancelFailed: 'cancel_failed',
+} as const;
