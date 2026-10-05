@@ -92,7 +92,7 @@ export interface ChoicesEvent extends NootEventMeta {
   options: ChoiceOption[];
 }
 
-export interface ProgressEvent extends NootEventMeta {
+export interface TurnProgressEvent extends NootEventMeta {
   type: 'progress';
   label: string;
   /** Completion between 0 and 1 when the engine can estimate it. */
@@ -118,7 +118,7 @@ export interface DoneEvent extends NootEventMeta {
   reason: DoneReason;
 }
 
-export interface ErrorEvent extends NootEventMeta {
+export interface TurnErrorEvent extends NootEventMeta {
   type: 'error';
   /** Machine-readable class, e.g. `engine_unavailable`, `rate_limited`. */
   code: string;
@@ -140,10 +140,10 @@ export type NootEvent =
   | ThinkingDeltaEvent
   | ToolCallEvent
   | ChoicesEvent
-  | ProgressEvent
+  | TurnProgressEvent
   | UsageEvent
   | DoneEvent
-  | ErrorEvent
+  | TurnErrorEvent
   | InternalNoteEvent;
 
 export function isTerminalEvent(event: NootEvent): event is DoneEvent {
