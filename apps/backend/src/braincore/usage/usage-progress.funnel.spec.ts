@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { isNootEvent, type NootEvent } from '@noot/shared';
+import { isNootEvent, type EngineAdapter, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../config/app-config.js';
 import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from '../braincore.service.js';
@@ -86,4 +86,67 @@ describe('NV-8 usage + progress funnel', () => {
     });
     expect(records[0]!.durationMs).toBeGreaterThanOrEqual(0);
   });
+
+  it('records a failed turn once, with no tokens and unknown cost', async () => {
+    const session = await service.createSession(MOCK_ENGINE_ID, 'mock-model');
+    replaceStartTurn(service, () => {
+      throw new Error('engine exploded');
+    });
+
+    const turnId = await service.sendUserMessage(session.id, 'boom');
+
+    const records = await service.usage.listRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ turnId, inputTokens: 0, costUsd: null, reportedModels: [] });
+  });
+
+  it('records a cancelled turn once, keeping the usage it reported', async () => {
+    const session = await service.createSession(MOCK_ENGINE_ID, 'mock-model');
+    replaceStartTurn(service, async function* (engineSession, _input, options) {
+      const meta = {
+        sessionId: engineSession.sessionId,
+        turnId: options.turnId,
+        emittedAt: new Date().toISOString(),
+      };
+      yield {
+        ...meta,
+        seq: 0,
+        type: 'usage',
+        engine: MOCK_ENGINE_ID,
+        model: options.model,
+        inputTokens: 4,
+        outputTokens: 0,
+      };
+      yield { ...meta, seq: 1, type: 'done', reason: 'cancelled' };
+    });
+
+    const turnId = await service.sendUserMessage(session.id, 'stop');
+
+    const records = await service.usage.listRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ turnId, inputTokens: 4, costUsd: null });
+  });
+
+  it('records nothing for an internal note turn', async () => {
+    const session = await service.createSession(MOCK_ENGINE_ID, 'mock-model');
+    await service.postInternalTurn(session.id, 'cron', 'background result');
+    await expect(service.usage.listRecords()).resolves.toEqual([]);
+  });
+
+  it('records one line per turn when sessions run turns concurrently', async () => {
+    const sessions = await Promise.all(
+      Array.from({ length: 5 }, () => service.createSession(MOCK_ENGINE_ID, 'mock-model')),
+    );
+    const turnIds = await Promise.all(
+      sessions.map((session) => service.sendUserMessage(session.id, 'parallel')),
+    );
+
+    const records = await service.usage.listRecords();
+    expect(records.map((record) => record.turnId).sort()).toEqual([...turnIds].sort());
+  });
 });
+
+function replaceStartTurn(service: BraincoreService, startTurn: EngineAdapter['startTurn']): void {
+  const engine = service.engines.get(MOCK_ENGINE_ID) as { startTurn: EngineAdapter['startTurn'] };
+  engine.startTurn = startTurn;
+}

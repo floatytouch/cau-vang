@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
@@ -20,7 +20,8 @@ import {
   MOCK_USAGE_OUTPUT_TOKENS,
 } from '../testing/mock-engine-adapter.js';
 import { UsageController } from './usage.controller.js';
-import { utcDayOf } from './usage-recorder.js';
+import { utcDayOf } from './usage-day.js';
+import { USAGE_LOG_FILE_NAME } from './usage-recorder.js';
 
 describe('GET /usage/daily', () => {
   let app: INestApplication;
@@ -77,6 +78,7 @@ describe('GET /usage/daily', () => {
       cacheWriteTokens: 0,
     });
     expect(body.engines[0]!.costUsd).toBeCloseTo(MOCK_USAGE_COST_USD * 2);
+    expect(body.engines[0]!.unpricedTurns).toBe(0);
     expect(body.engines[0]!.durationMs).toBeGreaterThanOrEqual(0);
     expect(body.totals.turns).toBe(2);
     expect(body.totals.inputTokens).toBe(MOCK_USAGE_INPUT_TOKENS * 2);
@@ -91,5 +93,19 @@ describe('GET /usage/daily', () => {
       .query({ day: '10/05/2026' })
       .expect(400);
     expect(JSON.stringify(response.body)).toMatch(/YYYY-MM-DD/);
+  });
+
+  it('defaults to today when no day is given', async () => {
+    const response = await request(app.getHttpServer()).get(USAGE_DAILY_PATH).expect(200);
+    expect((response.body as DailyUsageResponse).day).toBe(utcDayOf(new Date().toISOString()));
+  });
+
+  it('reports a storage failure as a server error without leaking the data path', async () => {
+    await mkdir(path.join(tempDataDir, USAGE_LOG_FILE_NAME));
+    const response = await request(app.getHttpServer())
+      .get(USAGE_DAILY_PATH)
+      .query({ day: '2026-10-05' })
+      .expect(500);
+    expect(JSON.stringify(response.body)).not.toContain(tempDataDir);
   });
 });

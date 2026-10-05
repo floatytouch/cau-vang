@@ -8,10 +8,10 @@ import {
   NOOT_EVENT_TYPE_TEXT_DELTA,
   NOOT_EVENT_TYPE_USAGE,
 } from '@noot/shared';
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import type { DailyUsageResponse, EngineAdapter, NootEvent } from '@noot/shared';
+import type { EngineAdapter, NootEvent } from '@noot/shared';
 import {
   DEFAULT_BRAINCORE_DATA_DIR,
   DEFAULT_IDENTITY_CONFIG_DIR,
@@ -49,7 +49,6 @@ export interface BraincoreServiceOptions {
 
 @Injectable()
 export class BraincoreService extends EventEmitter {
-  private readonly logger = new Logger(BraincoreService.name);
   readonly sessions: SessionManager;
   readonly engines = new EngineRegistry();
   readonly tools = new ToolRegistry();
@@ -115,10 +114,6 @@ export class BraincoreService extends EventEmitter {
   async setEngine(sessionId: string, engineId: string, model: string): Promise<StoredSession> {
     this.engines.get(engineId);
     return this.sessions.setEngine(sessionId, engineId, model);
-  }
-
-  async summarizeDailyUsage(day: string): Promise<DailyUsageResponse> {
-    return this.usage.summarizeDay(day);
   }
 
   /** A background job's result: stored as `internal`, emitted as its own note turn. */
@@ -190,23 +185,16 @@ export class BraincoreService extends EventEmitter {
       if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         textParts.push(event.text);
       }
+<<<<<<< HEAD
       if (event.type === NOOT_EVENT_TYPE_DONE) {
         await this.persistTurnUsage(accumulator, Date.now() - startedAt);
+=======
+      if (event.type === 'done') {
+        await this.usage.recordTurn(accumulator.finalize(Date.now() - startedAt));
+>>>>>>> edc0a6d (NV-8 harden usage records: unknown cost, requested model, fail-safe rollup)
       }
     }
     return textParts.join('');
-  }
-
-  private async persistTurnUsage(
-    accumulator: TurnUsageAccumulator,
-    durationMs: number,
-  ): Promise<void> {
-    try {
-      await this.usage.recordTurn(accumulator.finalize(durationMs));
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`UsageRecorder.recordTurn failed: ${reason}`);
-    }
   }
 
   private emitEvent(event: NootEvent): void {
