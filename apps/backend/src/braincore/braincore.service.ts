@@ -1,3 +1,10 @@
+import {
+  DONE_REASON_COMPLETED,
+  ENGINE_TOOL_LOOP_OWN,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_INTERNAL_NOTE,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+} from '@noot/shared';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
@@ -100,8 +107,8 @@ export class BraincoreService extends EventEmitter {
   async postInternalTurn(sessionId: string, source: string, text: string): Promise<void> {
     await this.sessions.appendMessage(sessionId, 'internal', text);
     const meta = { sessionId, turnId: randomUUID(), emittedAt: new Date().toISOString() };
-    this.emitEvent({ ...meta, seq: 0, type: 'internal_note', source, text });
-    this.emitEvent({ ...meta, seq: 1, type: 'done', reason: 'completed' });
+    this.emitEvent({ ...meta, seq: 0, type: NOOT_EVENT_TYPE_INTERNAL_NOTE, source, text });
+    this.emitEvent({ ...meta, seq: 1, type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED });
   }
 
   async sendUserMessage(sessionId: string, text: string): Promise<string> {
@@ -126,7 +133,7 @@ export class BraincoreService extends EventEmitter {
             model: session.model,
             systemPrompt,
             tools:
-              adapter.capabilities.toolLoop === 'ownToolLoop'
+              adapter.capabilities.toolLoop === ENGINE_TOOL_LOOP_OWN
                 ? this.tools.createBridge()
                 : undefined,
           },
@@ -152,7 +159,7 @@ export class BraincoreService extends EventEmitter {
     const textParts: string[] = [];
     for await (const event of runConversationTurn(params)) {
       this.emitEvent(event);
-      if (event.type === 'text_delta') {
+      if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         textParts.push(event.text);
       }
     }

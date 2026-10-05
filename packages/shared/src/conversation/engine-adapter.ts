@@ -8,7 +8,10 @@ import type { NootEvent } from './events.js';
  *   brain runs the tool loop.
  * One field instead of two booleans so an engine cannot claim both or neither.
  */
-export const ENGINE_TOOL_LOOPS = ['ownToolLoop', 'bareApi'] as const;
+export const ENGINE_TOOL_LOOP_OWN = 'ownToolLoop' as const;
+export const ENGINE_TOOL_LOOP_BARE_API = 'bareApi' as const;
+
+export const ENGINE_TOOL_LOOPS = [ENGINE_TOOL_LOOP_OWN, ENGINE_TOOL_LOOP_BARE_API] as const;
 export type EngineToolLoop = (typeof ENGINE_TOOL_LOOPS)[number];
 
 export interface EngineCapabilities {
@@ -22,11 +25,11 @@ export interface EngineCapabilities {
 }
 
 export function isHarnessEngine(capabilities: EngineCapabilities): boolean {
-  return capabilities.toolLoop === 'ownToolLoop';
+  return capabilities.toolLoop === ENGINE_TOOL_LOOP_OWN;
 }
 
 export function isBareApiEngine(capabilities: EngineCapabilities): boolean {
-  return capabilities.toolLoop === 'bareApi';
+  return capabilities.toolLoop === ENGINE_TOOL_LOOP_BARE_API;
 }
 
 export interface ConversationMessage {

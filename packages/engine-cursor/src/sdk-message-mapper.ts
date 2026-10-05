@@ -1,3 +1,15 @@
+import {
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  NOOT_EVENT_TYPE_USAGE,
+  TOOL_CALL_PHASE_END,
+  TOOL_CALL_PHASE_START,
+  TOOL_CALL_PHASE_UPDATE,
+  TOOL_CALL_STATUS_FAILED,
+  TOOL_CALL_STATUS_RUNNING,
+  TOOL_CALL_STATUS_SUCCEEDED,
+} from '@noot/shared';
 import type {
   SDKAssistantMessage,
   SDKMessage,
@@ -42,14 +54,14 @@ function mapThinkingMessage(message: SDKThinkingMessage, builder: TurnEventBuild
   if (message.text.length === 0) {
     return [];
   }
-  return [{ ...builder.meta(), type: 'thinking_delta', text: message.text }];
+  return [{ ...builder.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: message.text }];
 }
 
 function mapAssistantMessage(message: SDKAssistantMessage, builder: TurnEventBuilder): NootEvent[] {
   const events: NootEvent[] = [];
   for (const block of message.message.content) {
     if (block.type === 'text' && block.text.length > 0) {
-      events.push({ ...builder.meta(), type: 'text_delta', text: block.text });
+      events.push({ ...builder.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: block.text });
     }
   }
   return events;
@@ -74,15 +86,15 @@ function mapToolUseMessage(
     toolTracker.open.set(message.call_id, message.name);
     events.push({
       ...builder.meta(),
-      type: 'tool_call',
-      phase: 'start',
-      status: 'running',
+      type: NOOT_EVENT_TYPE_TOOL_CALL,
+      phase: TOOL_CALL_PHASE_START,
+      status: TOOL_CALL_STATUS_RUNNING,
       ...base,
       args: message.args ?? {},
     });
   };
 
-  if (message.status === 'running') {
+  if (message.status === TOOL_CALL_STATUS_RUNNING) {
     if (!toolTracker.started.has(message.call_id)) {
       ensureStarted();
       return events;
@@ -90,9 +102,9 @@ function mapToolUseMessage(
     return [
       {
         ...builder.meta(),
-        type: 'tool_call',
-        phase: 'update',
-        status: 'running',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_UPDATE,
+        status: TOOL_CALL_STATUS_RUNNING,
         ...base,
         args: message.args,
       },
@@ -104,9 +116,9 @@ function mapToolUseMessage(
   const succeeded = message.status === 'completed';
   events.push({
     ...builder.meta(),
-    type: 'tool_call',
-    phase: 'end',
-    status: succeeded ? 'succeeded' : 'failed',
+    type: NOOT_EVENT_TYPE_TOOL_CALL,
+    phase: TOOL_CALL_PHASE_END,
+    status: succeeded ? TOOL_CALL_STATUS_SUCCEEDED : TOOL_CALL_STATUS_FAILED,
     ...base,
     result: succeeded ? message.result : undefined,
     error: succeeded ? undefined : toolErrorDetail(message.result),
@@ -130,9 +142,9 @@ export function closeOpenToolCalls(
   for (const [callId, name] of toolTracker.open) {
     events.push({
       ...builder.meta(),
-      type: 'tool_call',
-      phase: 'end',
-      status: 'failed',
+      type: NOOT_EVENT_TYPE_TOOL_CALL,
+      phase: TOOL_CALL_PHASE_END,
+      status: TOOL_CALL_STATUS_FAILED,
       callId,
       name,
       error: TOOL_INTERRUPTED,
@@ -151,7 +163,7 @@ function mapUsageMessage(
   return [
     {
       ...builder.meta(),
-      type: 'usage',
+      type: NOOT_EVENT_TYPE_USAGE,
       engine: CURSOR_ENGINE_ID,
       model,
       inputTokens: usage.inputTokens,

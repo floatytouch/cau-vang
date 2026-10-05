@@ -1,3 +1,16 @@
+import {
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_PROGRESS,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  TOOL_CALL_PHASE_END,
+  TOOL_CALL_PHASE_UPDATE,
+  TOOL_CALL_STATUS_BLOCKED,
+  TOOL_CALL_STATUS_FAILED,
+  TOOL_CALL_STATUS_RUNNING,
+  TOOL_CALL_STATUS_SUCCEEDED,
+} from '@noot/shared';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { NootEvent } from '@noot/shared';
 
@@ -49,7 +62,7 @@ export class SdkMessageMapper {
     if (message.error) {
       events.push({
         ...this.sequence.meta(),
-        type: 'error',
+        type: NOOT_EVENT_TYPE_ERROR,
         code: message.error,
         message: `Claude assistant error: ${message.error}`,
         recoverable: false,
@@ -62,10 +75,10 @@ export class SdkMessageMapper {
     block: MessageOf<'assistant'>['message']['content'][number],
   ): NootEvent[] {
     if (block.type === 'thinking' && block.thinking) {
-      return [{ ...this.sequence.meta(), type: 'thinking_delta', text: block.thinking }];
+      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: block.thinking }];
     }
     if (block.type === 'text' && block.text) {
-      return [{ ...this.sequence.meta(), type: 'text_delta', text: block.text }];
+      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: block.text }];
     }
     if (block.type === 'tool_use') {
       const args = block.input ?? {};
@@ -88,15 +101,15 @@ export class SdkMessageMapper {
       const callId = block.tool_use_id;
       const base = {
         ...this.sequence.meta(),
-        type: 'tool_call' as const,
-        phase: 'end' as const,
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_END as const,
         callId,
         name: this.toolCalls.nameOf(callId),
       };
       events.push(
         block.is_error === true
-          ? { ...base, status: 'failed', error: stringifyToolContent(block.content) }
-          : { ...base, status: 'succeeded', result: block.content ?? null },
+          ? { ...base, status: TOOL_CALL_STATUS_FAILED, error: stringifyToolContent(block.content) }
+          : { ...base, status: TOOL_CALL_STATUS_SUCCEEDED, result: block.content ?? null },
       );
     }
     return events;
@@ -105,12 +118,12 @@ export class SdkMessageMapper {
   private mapToolProgress(message: MessageOf<'tool_progress'>): NootEvent[] {
     const name = brainToolName(message.tool_name);
     return [
-      { ...this.sequence.meta(), type: 'progress', label: name },
+      { ...this.sequence.meta(), type: NOOT_EVENT_TYPE_PROGRESS, label: name },
       {
         ...this.sequence.meta(),
-        type: 'tool_call',
-        phase: 'update',
-        status: 'running',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_UPDATE,
+        status: TOOL_CALL_STATUS_RUNNING,
         callId: message.tool_use_id,
         name,
         message: `Running (${message.elapsed_time_seconds}s)`,
@@ -124,9 +137,9 @@ export class SdkMessageMapper {
     return [
       {
         ...this.sequence.meta(),
-        type: 'tool_call',
-        phase: 'end',
-        status: 'blocked',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_END,
+        status: TOOL_CALL_STATUS_BLOCKED,
         callId: message.tool_use_id,
         name: brainToolName(message.tool_name),
         error: message.message,
@@ -144,7 +157,7 @@ export class SdkMessageMapper {
       ...usage,
       {
         ...this.sequence.meta(),
-        type: 'error',
+        type: NOOT_EVENT_TYPE_ERROR,
         code: message.subtype,
         message: errorText,
         recoverable: false,

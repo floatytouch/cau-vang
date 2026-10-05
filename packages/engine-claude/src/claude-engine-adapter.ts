@@ -1,3 +1,10 @@
+import {
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  DONE_REASON_CANCELLED,
+  DONE_REASON_COMPLETED,
+  DONE_REASON_FAILED,
+} from '@noot/shared';
 import type { Options, Query, SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type {
   DoneReason,
@@ -9,7 +16,7 @@ import type {
 } from '@noot/shared';
 
 import type { ClaudeQueryFactory } from './claude-query-factory.js';
-import { defaultClaudeQueryFactory } from './claude-query-factory.js';
+import { DEFAULT_CLAUDE_QUERY_FACTORY } from './claude-query-factory.js';
 import { CLAUDE_ENGINE_CAPABILITIES, CLAUDE_ENGINE_ID } from './constants.js';
 import { EventSequence } from './event-sequence.js';
 import { oauthSubprocessEnv } from './oauth-subprocess-env.js';
@@ -48,7 +55,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     if (options.subprocessEnv == null || typeof options.subprocessEnv !== 'object') {
       throw new Error('ClaudeEngineAdapter requires subprocessEnv from the app config layer');
     }
-    this.queryFactory = options.queryFactory ?? defaultClaudeQueryFactory;
+    this.queryFactory = options.queryFactory ?? DEFAULT_CLAUDE_QUERY_FACTORY;
     this.sessionHandles = options.sessionHandles ?? new SessionHandleStore();
     this.subprocessEnv = options.subprocessEnv;
   }
@@ -75,7 +82,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
       for await (const message of claudeQuery) {
         this.trackSession(session.sessionId, message, state);
         for (const event of mapper.mapMessage(message)) {
-          if (event.type === 'error') {
+          if (event.type === NOOT_EVENT_TYPE_ERROR) {
             if (abortController.signal.aborted) {
               continue;
             }
@@ -101,7 +108,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     if (resumeId && state.sawError && !state.sessionEstablished) {
       this.sessionHandles.forget(session.sessionId);
     }
-    yield { ...sequence.meta(), type: 'done', reason: doneReason(abortController, state) };
+    yield { ...sequence.meta(), type: NOOT_EVENT_TYPE_DONE, reason: doneReason(abortController, state) };
   }
 
   /** Abort kills the CLI subprocess; `interrupt()` is not used because it needs streaming-input mode. */
@@ -155,7 +162,7 @@ function buildMcpServers(tools: TurnOptions['tools']): Options['mcpServers'] {
 function failureEvent(sequence: EventSequence, error: unknown): NootEvent {
   return {
     ...sequence.meta(),
-    type: 'error',
+    type: NOOT_EVENT_TYPE_ERROR,
     code: ENGINE_FAILURE_CODE,
     message: error instanceof Error ? error.message : String(error),
     recoverable: false,
@@ -164,7 +171,7 @@ function failureEvent(sequence: EventSequence, error: unknown): NootEvent {
 
 function doneReason(abortController: AbortController, state: TurnState): DoneReason {
   if (abortController.signal.aborted) {
-    return 'cancelled';
+    return DONE_REASON_CANCELLED;
   }
-  return state.sawError ? 'failed' : 'completed';
+  return state.sawError ? DONE_REASON_FAILED : DONE_REASON_COMPLETED;
 }

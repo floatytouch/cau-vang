@@ -1,3 +1,6 @@
+import {
+  NOOT_EVENT_TYPE_CHOICES,
+} from '@noot/shared';
 import type { ChoiceOption, ChoicesEvent } from '@noot/shared';
 
 import type { EventSequence } from './event-sequence.js';
@@ -43,7 +46,7 @@ export function choicesFromAskUserQuestionArgs(
 
   return {
     ...sequence.meta(),
-    type: 'choices',
+    type: NOOT_EVENT_TYPE_CHOICES,
     prompt: first.question ?? first.header,
     options: mapped,
   };

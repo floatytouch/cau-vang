@@ -1,3 +1,10 @@
+import {
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  TOOL_CALL_PHASE_UPDATE,
+  TOOL_CALL_STATUS_RUNNING,
+} from '@noot/shared';
 import type { SDKPartialAssistantMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { NootEvent } from '@noot/shared';
 
@@ -65,11 +72,11 @@ export class StreamEventMapper {
     index: number,
     delta: { type: string; text?: string; thinking?: string; partial_json?: string },
   ): NootEvent[] {
-    if (delta.type === 'text_delta' && delta.text) {
-      return [{ ...this.sequence.meta(), type: 'text_delta', text: delta.text }];
+    if (delta.type === NOOT_EVENT_TYPE_TEXT_DELTA && delta.text) {
+      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: delta.text }];
     }
-    if (delta.type === 'thinking_delta' && delta.thinking) {
-      return [{ ...this.sequence.meta(), type: 'thinking_delta', text: delta.thinking }];
+    if (delta.type === NOOT_EVENT_TYPE_THINKING_DELTA && delta.thinking) {
+      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: delta.thinking }];
     }
     if (delta.type !== 'input_json_delta' || !delta.partial_json) {
       return [];
@@ -86,9 +93,9 @@ export class StreamEventMapper {
     return [
       {
         ...this.sequence.meta(),
-        type: 'tool_call',
-        phase: 'update',
-        status: 'running',
+        type: NOOT_EVENT_TYPE_TOOL_CALL,
+        phase: TOOL_CALL_PHASE_UPDATE,
+        status: TOOL_CALL_STATUS_RUNNING,
         callId: block.callId,
         name: this.toolCalls.nameOf(block.callId),
         args,

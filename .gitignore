@@ -14,7 +14,5 @@ coverage/
 
 apps/backend/data/
 
-CLAUDE.md
-AGENTS.md
 .claude/
 .cursorrules

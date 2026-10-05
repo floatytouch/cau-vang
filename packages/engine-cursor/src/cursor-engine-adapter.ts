@@ -1,4 +1,12 @@
 import {
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_USAGE,
+  DONE_REASON_CANCELLED,
+  DONE_REASON_COMPLETED,
+  DONE_REASON_FAILED,
+} from '@noot/shared';
+import {
   Agent,
   type AgentOptions,
   type RunResult,
@@ -99,7 +107,7 @@ export function createCursorEngineAdapter(
       const toolTracker = createToolCallTracker();
       activeTurns.set(options.turnId, control);
       const timeoutHandle = setTimeout(() => control.expire(), turnTimeoutMs);
-      let doneReason: DoneReason = 'failed';
+      let doneReason: DoneReason = DONE_REASON_FAILED;
 
       try {
         const agentCreation = sessionAgent(session.sessionId, options);
@@ -115,12 +123,12 @@ export function createCursorEngineAdapter(
         yield* closeOpenToolCalls(builder, toolTracker);
         if (control.stopFailure !== undefined) {
           yield errorEvent(builder, {
-            code: TURN_ERROR_CODES.cancelFailed,
+            code: TURN_ERROR_CODES.CANCEL_FAILED,
             message: control.stopFailure,
             recoverable: false,
           });
         }
-        yield { ...builder.meta(), type: 'done', reason: doneReason };
+        yield { ...builder.meta(), type: NOOT_EVENT_TYPE_DONE, reason: doneReason };
       }
     },
 
@@ -154,7 +162,7 @@ async function* runTurn(
       streamFailure = statusFailureMessage(message) ?? streamFailure;
     }
     for (const event of mapSdkMessageToNootEvents(message, builder, options.model, toolTracker)) {
-      usageFromStream ||= event.type === 'usage';
+      usageFromStream ||= event.type === NOOT_EVENT_TYPE_USAGE;
       yield event;
     }
   }
@@ -178,30 +186,30 @@ async function* finishTurn(
   const { control, builder, options } = context;
   if (control.timedOut) {
     yield errorEvent(builder, {
-      code: TURN_ERROR_CODES.timeout,
+      code: TURN_ERROR_CODES.TIMEOUT,
       message: `Cursor turn ${options.turnId} exceeded the turn timeout and was cancelled`,
       recoverable: false,
     });
-    return 'failed';
+    return DONE_REASON_FAILED;
   }
   if (control.cancelRequested || outcome === undefined || outcome.result.status === 'cancelled') {
-    return 'cancelled';
+    return DONE_REASON_CANCELLED;
   }
   if (outcome.result.status === 'error') {
     yield errorEvent(builder, describeRunFailure(outcome.result, outcome.streamFailure));
-    return 'failed';
+    return DONE_REASON_FAILED;
   }
-  return 'completed';
+  return DONE_REASON_COMPLETED;
 }
 
 function errorEvent(builder: TurnEventBuilder, detail: TurnErrorDetail): NootEvent {
-  return { ...builder.meta(), type: 'error', ...detail };
+  return { ...builder.meta(), type: NOOT_EVENT_TYPE_ERROR, ...detail };
 }
 
 function usageEvent(builder: TurnEventBuilder, model: string, usage: TokenUsage): NootEvent {
   return {
     ...builder.meta(),
-    type: 'usage',
+    type: NOOT_EVENT_TYPE_USAGE,
     engine: CURSOR_ENGINE_ID,
     model,
     inputTokens: usage.inputTokens,

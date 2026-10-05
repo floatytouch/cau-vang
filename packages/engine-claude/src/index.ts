@@ -5,4 +5,4 @@ export { oauthSubprocessEnv } from './oauth-subprocess-env.js';
 export { SessionHandleStore } from './session-handle-store.js';
 export { SdkMessageMapper } from './sdk-message-mapper.js';
 export { createToolBridgeMcpServer } from './tool-bridge-mcp-server.js';
-export { type ClaudeQueryFactory, defaultClaudeQueryFactory } from './claude-query-factory.js';
+export { type ClaudeQueryFactory, DEFAULT_CLAUDE_QUERY_FACTORY } from './claude-query-factory.js';

@@ -1,80 +1,100 @@
 import {
   DONE_REASONS,
+  NOOT_EVENT_TYPE_CHOICES,
+  NOOT_EVENT_TYPE_DONE,
+  NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_INTERNAL_NOTE,
+  NOOT_EVENT_TYPE_PROGRESS,
+  NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_THINKING_DELTA,
+  NOOT_EVENT_TYPE_TOOL_CALL,
+  NOOT_EVENT_TYPE_USAGE,
   NOOT_EVENT_TYPES,
+  TOOL_CALL_PHASE_END,
+  TOOL_CALL_PHASE_START,
+  TOOL_CALL_PHASE_UPDATE,
   TOOL_CALL_PHASES,
+  TOOL_CALL_STATUS_RUNNING,
   TOOL_CALL_TERMINAL_STATUSES,
   type NootEvent,
   type NootEventType,
   type ToolCallPhase,
 } from './events.js';
 import {
-  anyString,
-  booleanValue,
+  ANY_STRING,
+  BOOLEAN_VALUE,
   findShapeViolation,
   isRecord,
-  isoTimestamp,
-  nonEmptyString,
-  nonNegativeInteger,
-  nonNegativeNumber,
+  ISO_TIMESTAMP,
+  NON_EMPTY_STRING,
+  NON_NEGATIVE_INTEGER,
+  NON_NEGATIVE_NUMBER,
   oneOf,
   optional,
-  presentValue,
-  unitFraction,
+  PRESENT_VALUE,
+  UNIT_FRACTION,
   type Shape,
 } from './shape.js';
 
 export type NootEventParseResult = { ok: true; event: NootEvent } | { ok: false; error: string };
 
 const META_SHAPE: Shape = {
-  sessionId: nonEmptyString,
-  turnId: nonEmptyString,
-  seq: nonNegativeInteger,
-  emittedAt: isoTimestamp,
+  sessionId: NON_EMPTY_STRING,
+  turnId: NON_EMPTY_STRING,
+  seq: NON_NEGATIVE_INTEGER,
+  emittedAt: ISO_TIMESTAMP,
 };
 
 const CHOICE_OPTION_SHAPE: Shape = {
-  id: nonEmptyString,
-  label: nonEmptyString,
-  description: optional(anyString),
+  id: NON_EMPTY_STRING,
+  label: NON_EMPTY_STRING,
+  description: optional(ANY_STRING),
 };
 
 const TOOL_CALL_BASE_SHAPE: Shape = {
-  callId: nonEmptyString,
-  name: nonEmptyString,
+  callId: NON_EMPTY_STRING,
+  name: NON_EMPTY_STRING,
 };
 
 const TOOL_CALL_PHASE_SHAPES: Readonly<Record<ToolCallPhase, Shape>> = {
-  start: { status: oneOf(['running']), args: presentValue },
-  update: {
-    status: oneOf(['running']),
-    args: optional(presentValue),
-    message: optional(anyString),
+  [TOOL_CALL_PHASE_START]: { status: oneOf([TOOL_CALL_STATUS_RUNNING]), args: PRESENT_VALUE },
+  [TOOL_CALL_PHASE_UPDATE]: {
+    status: oneOf([TOOL_CALL_STATUS_RUNNING]),
+    args: optional(PRESENT_VALUE),
+    message: optional(ANY_STRING),
   },
-  end: {
+  [TOOL_CALL_PHASE_END]: {
     status: oneOf(TOOL_CALL_TERMINAL_STATUSES),
-    result: optional(presentValue),
-    error: optional(anyString),
+    result: optional(PRESENT_VALUE),
+    error: optional(ANY_STRING),
   },
 };
 
-type FlatEventType = Exclude<NootEventType, 'tool_call' | 'choices'>;
+type FlatEventType = Exclude<
+  NootEventType,
+  typeof NOOT_EVENT_TYPE_TOOL_CALL | typeof NOOT_EVENT_TYPE_CHOICES
+>;
 
 const FLAT_EVENT_SHAPES: Readonly<Record<FlatEventType, Shape>> = {
-  text_delta: { text: anyString },
-  thinking_delta: { text: anyString },
-  progress: { label: nonEmptyString, fraction: optional(unitFraction) },
-  usage: {
-    engine: nonEmptyString,
-    model: nonEmptyString,
-    inputTokens: nonNegativeInteger,
-    outputTokens: nonNegativeInteger,
-    cacheReadTokens: optional(nonNegativeInteger),
-    cacheWriteTokens: optional(nonNegativeInteger),
-    costUsd: optional(nonNegativeNumber),
+  [NOOT_EVENT_TYPE_TEXT_DELTA]: { text: ANY_STRING },
+  [NOOT_EVENT_TYPE_THINKING_DELTA]: { text: ANY_STRING },
+  [NOOT_EVENT_TYPE_PROGRESS]: { label: NON_EMPTY_STRING, fraction: optional(UNIT_FRACTION) },
+  [NOOT_EVENT_TYPE_USAGE]: {
+    engine: NON_EMPTY_STRING,
+    model: NON_EMPTY_STRING,
+    inputTokens: NON_NEGATIVE_INTEGER,
+    outputTokens: NON_NEGATIVE_INTEGER,
+    cacheReadTokens: optional(NON_NEGATIVE_INTEGER),
+    cacheWriteTokens: optional(NON_NEGATIVE_INTEGER),
+    costUsd: optional(NON_NEGATIVE_NUMBER),
   },
-  done: { reason: oneOf(DONE_REASONS) },
-  error: { code: nonEmptyString, message: anyString, recoverable: booleanValue },
-  internal_note: { source: nonEmptyString, text: anyString },
+  [NOOT_EVENT_TYPE_DONE]: { reason: oneOf(DONE_REASONS) },
+  [NOOT_EVENT_TYPE_ERROR]: {
+    code: NON_EMPTY_STRING,
+    message: ANY_STRING,
+    recoverable: BOOLEAN_VALUE,
+  },
+  [NOOT_EVENT_TYPE_INTERNAL_NOTE]: { source: NON_EMPTY_STRING, text: ANY_STRING },
 };
 
 function describeValue(value: unknown): string {
@@ -88,30 +108,34 @@ function isNootEventType(value: unknown): value is NootEventType {
 function findToolCallViolation(record: Record<string, unknown>): string | undefined {
   const phase = record['phase'];
   if (typeof phase !== 'string' || !(TOOL_CALL_PHASES as readonly string[]).includes(phase)) {
-    return `tool_call.phase must be ${oneOf(TOOL_CALL_PHASES).expected}`;
+    return `${NOOT_EVENT_TYPE_TOOL_CALL}.phase must be ${oneOf(TOOL_CALL_PHASES).expected}`;
   }
   return (
-    findShapeViolation(record, TOOL_CALL_BASE_SHAPE, 'tool_call') ??
+    findShapeViolation(record, TOOL_CALL_BASE_SHAPE, NOOT_EVENT_TYPE_TOOL_CALL) ??
     findShapeViolation(
       record,
       TOOL_CALL_PHASE_SHAPES[phase as ToolCallPhase],
-      `tool_call(${phase})`,
+      `${NOOT_EVENT_TYPE_TOOL_CALL}(${phase})`,
     )
   );
 }
 
 function findChoicesViolation(record: Record<string, unknown>): string | undefined {
-  const promptViolation = findShapeViolation(record, { prompt: optional(anyString) }, 'choices');
+  const promptViolation = findShapeViolation(
+    record,
+    { prompt: optional(ANY_STRING) },
+    NOOT_EVENT_TYPE_CHOICES,
+  );
   if (promptViolation !== undefined) {
     return promptViolation;
   }
   const options = record['options'];
   if (!Array.isArray(options) || options.length === 0) {
-    return 'choices.options must be a non-empty array';
+    return `${NOOT_EVENT_TYPE_CHOICES}.options must be a non-empty array`;
   }
   const seenIds = new Set<unknown>();
   for (const [index, option] of options.entries()) {
-    const path = `choices.options[${index}]`;
+    const path = `${NOOT_EVENT_TYPE_CHOICES}.options[${index}]`;
     if (!isRecord(option)) {
       return `${path} must be an object`;
     }
@@ -131,10 +155,10 @@ function findPayloadViolation(
   type: NootEventType,
   record: Record<string, unknown>,
 ): string | undefined {
-  if (type === 'tool_call') {
+  if (type === NOOT_EVENT_TYPE_TOOL_CALL) {
     return findToolCallViolation(record);
   }
-  if (type === 'choices') {
+  if (type === NOOT_EVENT_TYPE_CHOICES) {
     return findChoicesViolation(record);
   }
   return findShapeViolation(record, FLAT_EVENT_SHAPES[type], type);
