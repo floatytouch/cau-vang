@@ -87,17 +87,23 @@ describe('runConversationTurn (bare API)', () => {
     const events = await runTurn(adapter, registry);
 
     expect(events.map((event) => event.type)).toEqual([
+      'progress',
       'text_delta',
       'tool_call',
+      'progress',
       'tool_call',
       'text_delta',
+      'progress',
       'done',
     ]);
-    expect(events.map((event) => event.seq)).toEqual([0, 1, 2, 3, 4]);
+    expect(events.map((event) => event.seq)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(events[0]).toMatchObject({ label: 'starting', fraction: 0 });
+    expect(events[3]).toMatchObject({ label: 'running_tools' });
+    expect(events[6]).toMatchObject({ label: 'finishing', fraction: 1 });
     expect(
       events.every((event) => event.turnId === 'turn-1' && event.sessionId === 'session-1'),
     ).toBe(true);
-    expect(events[2]).toMatchObject({
+    expect(events[4]).toMatchObject({
       phase: 'end',
       status: 'failed',
       error: 'Tool boom threw: tool exploded',
@@ -120,14 +126,19 @@ describe('runConversationTurn (bare API)', () => {
   it('stops looping when a step ends cancelled', async () => {
     const adapter = bareApiAdapter(() => [toolCall('echo'), done('cancelled')]);
     const events = await runTurn(adapter);
-    expect(events.map((event) => event.type)).toEqual(['tool_call', 'done']);
+    expect(events.map((event) => event.type)).toEqual([
+      'progress',
+      'tool_call',
+      'progress',
+      'done',
+    ]);
     expect(events.at(-1)).toMatchObject({ reason: 'cancelled' });
   });
 
   it('turns a stream without done into error + done(failed)', async () => {
     const events = await runTurn(bareApiAdapter(() => [text('partial')]));
-    expect(events.map((event) => event.type)).toEqual(['text_delta', 'error', 'done']);
-    expect(events.at(-1)).toMatchObject({ reason: 'failed', seq: 2 });
+    expect(events.map((event) => event.type)).toEqual(['progress', 'text_delta', 'error', 'done']);
+    expect(events.at(-1)).toMatchObject({ reason: 'failed', seq: 3 });
   });
 
   it('fails the turn once the step cap is hit, with a single done', async () => {
@@ -138,5 +149,6 @@ describe('runConversationTurn (bare API)', () => {
       message: expect.stringMatching(/exceeded/),
     });
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'failed' });
+    expect(events[0]).toMatchObject({ type: 'progress', label: 'starting' });
   });
 });

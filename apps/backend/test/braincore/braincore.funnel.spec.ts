@@ -66,13 +66,20 @@ describe('BrainCore funnel', () => {
     expect(collected.map((event) => event.seq)).toEqual(collected.map((_, index) => index));
     expect(new Set(collected.map((event) => event.turnId)).size).toBe(1);
     expect(collected.map((event) => event.type)).toEqual([
+      'progress',
       'thinking_delta',
       'tool_call',
+      'progress',
       'tool_call',
       'text_delta',
+      'usage',
+      'progress',
       'done',
     ]);
-    expect(collected[2]).toMatchObject({ phase: 'end', status: 'succeeded' });
+    expect(collected[0]).toMatchObject({ label: 'starting', fraction: 0 });
+    expect(collected[3]).toMatchObject({ label: 'running_tools' });
+    expect(collected[4]).toMatchObject({ phase: 'end', status: 'succeeded' });
+    expect(collected[7]).toMatchObject({ label: 'finishing', fraction: 1 });
     expect(collected.at(-1)).toMatchObject({ type: 'done', reason: 'completed' });
 
     const stored = JSON.parse(
@@ -190,9 +197,9 @@ describe('BrainCore funnel', () => {
     const collected = collectEvents(service);
     await service.sendUserMessage(session.id, 'boom');
 
-    expect(collected.map((event) => event.type)).toEqual(['error', 'done']);
-    expect(collected[0]).toMatchObject({ message: 'engine exploded', seq: 0 });
-    expect(collected[1]).toMatchObject({ reason: 'failed', seq: 1 });
+    expect(collected.map((event) => event.type)).toEqual(['progress', 'error', 'done']);
+    expect(collected[1]).toMatchObject({ message: 'engine exploded', seq: 1 });
+    expect(collected[2]).toMatchObject({ reason: 'failed', seq: 2 });
     expect(service.sessions.beginTurn(session.id)).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_INTERNAL_NOTE,
   NOOT_EVENT_TYPE_TEXT_DELTA,
+  NOOT_EVENT_TYPE_USAGE,
 } from '@noot/shared';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
@@ -32,6 +33,7 @@ import {
 } from './testing/mock-engine-adapter.js';
 import { registerSampleTools, ToolRegistry } from './tools/tool-registry.js';
 import { runConversationTurn } from './turn/turn-runner.js';
+import { TurnUsageAccumulator, UsageRecorder } from './usage/usage-recorder.js';
 
 export const BRAINCORE_EVENT_CHANNEL = 'noot_event';
 
@@ -50,6 +52,7 @@ export class BraincoreService extends EventEmitter {
   readonly sessions: SessionManager;
   readonly engines = new EngineRegistry();
   readonly tools = new ToolRegistry();
+  readonly usage: UsageRecorder;
   readonly maxChatTextLength: number;
   private readonly identityConfigDir: string;
   private identity: IdentityBuilder | undefined;
@@ -59,10 +62,12 @@ export class BraincoreService extends EventEmitter {
   constructor(@Optional() @Inject(BRAINCORE_OPTIONS) options: BraincoreServiceOptions | null) {
     super();
     const resolved = options ?? {};
+    const dataDir = resolved.dataDir ?? DEFAULT_BRAINCORE_DATA_DIR;
     this.sessions = new SessionManager({
-      dataDir: resolved.dataDir ?? DEFAULT_BRAINCORE_DATA_DIR,
+      dataDir,
       liveSessionCap: resolved.liveSessionCap ?? DEFAULT_LIVE_SESSION_CAP,
     });
+    this.usage = new UsageRecorder({ dataDir });
     this.identityConfigDir = resolved.identityConfigDir ?? DEFAULT_IDENTITY_CONFIG_DIR;
     this.maxChatTextLength = resolved.maxChatTextLength ?? DEFAULT_MAX_CHAT_TEXT_LENGTH;
     registerSampleTools(this.tools);
@@ -165,10 +170,23 @@ export class BraincoreService extends EventEmitter {
 
   private async streamTurn(params: Parameters<typeof runConversationTurn>[0]): Promise<string> {
     const textParts: string[] = [];
+    const startedAt = Date.now();
+    const accumulator = new TurnUsageAccumulator({
+      sessionId: params.session.sessionId,
+      turnId: params.options.turnId,
+      engine: params.adapter.id,
+      model: params.options.model,
+    });
     for await (const event of runConversationTurn(params)) {
       this.emitEvent(event);
+      if (event.type === NOOT_EVENT_TYPE_USAGE) {
+        accumulator.observe(event);
+      }
       if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         textParts.push(event.text);
+      }
+      if (event.type === NOOT_EVENT_TYPE_DONE) {
+        await this.usage.recordTurn(accumulator.finalize(Date.now() - startedAt));
       }
     }
     return textParts.join('');

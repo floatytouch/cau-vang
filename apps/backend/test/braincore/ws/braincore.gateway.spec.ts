@@ -115,10 +115,13 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       .filter((event) => event.name === WS_NOOT_EVENT)
       .map((event) => (event.payload as { payload: NootEvent }).payload);
     expect(payloads.map((event) => [event.type, event.seq])).toEqual([
-      ['text_delta', 0],
-      ['done', 1],
+      ['progress', 0],
+      ['text_delta', 1],
+      ['usage', 2],
+      ['progress', 3],
+      ['done', 4],
     ]);
-    expect(payloads[0]).toMatchObject({ sessionId: session.id, text: 'hi there' });
+    expect(payloads[1]).toMatchObject({ sessionId: session.id, text: 'hi there' });
   });
 
   it.each([
