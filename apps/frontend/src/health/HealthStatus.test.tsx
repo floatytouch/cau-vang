@@ -1,4 +1,4 @@
-import type { HealthResponse } from '@noot/shared';
+import { HEALTH_PATH, type HealthResponse } from '@noot/shared';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HealthStatus } from './HealthStatus.js';
@@ -25,7 +25,7 @@ describe('HealthStatus', () => {
     render(<HealthStatus />);
 
     expect(await screen.findByText('Backend noot-backend: ok (up 42s)')).toBeTruthy();
-    expect(fetch).toHaveBeenCalledWith('/health', expect.anything());
+    expect(fetch).toHaveBeenCalledWith(HEALTH_PATH, expect.anything());
   });
 
   it('shows an error when /health fails', async () => {

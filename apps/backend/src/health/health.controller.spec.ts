@@ -17,7 +17,7 @@ describe('GET /health', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('returns an ok HealthResponse', async () => {

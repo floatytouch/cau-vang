@@ -25,7 +25,7 @@ redefine it.
 yarn install
 yarn build   # shared -> backend -> frontend
 yarn lint    # ESLint + Prettier check
-yarn test    # Vitest in every workspace
+yarn test    # typecheck + Vitest per app, typecheck for shared
 yarn dev     # shared watch + backend on :3000 + Vite dev server (proxies /health)
 ```
 
