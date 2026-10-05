@@ -43,6 +43,11 @@ describe('jsonSchemaToZodShape', () => {
 
   it.each([
     ['anyOf', { type: 'object', properties: { a: { anyOf: [{ type: 'string' }] } } }],
+    [
+      'anyOf beside a supported type',
+      { type: 'object', properties: { a: { type: 'string', anyOf: [{ minLength: 1 }] } } },
+    ],
+    ['oneOf at root', { type: 'object', oneOf: [{ required: ['a'] }] }],
     ['$ref at root', { $ref: '#/definitions/x' }],
     ['type arrays', { type: 'object', properties: { a: { type: ['string', 'null'] } } }],
     ['untyped property', { type: 'object', properties: { a: {} } }],

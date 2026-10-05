@@ -308,6 +308,31 @@ describe('ClaudeEngineAdapter cancel', () => {
     expectWellFormedTurn(events, 'cancelled');
   });
 
+  it('suppresses an error that follows a cancel inside the same SDK message', async () => {
+    const usageThenError = {
+      ...STALE_RESULT,
+      modelUsage: {
+        'claude-sonnet-5': {
+          inputTokens: 1,
+          outputTokens: 1,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          costUSD: 0,
+        },
+      },
+    } as unknown as SDKMessage;
+    const adapter = new ClaudeEngineAdapter({ queryFactory: replay(INIT, usageThenError).factory });
+    const events: NootEvent[] = [];
+    for await (const event of adapter.startTurn(SESSION, { text: 'x' }, OPTIONS)) {
+      events.push(event);
+      if (event.type === 'usage') {
+        await adapter.cancel(OPTIONS.turnId);
+      }
+    }
+    expect(events.some((event) => event.type === 'error')).toBe(false);
+    expectWellFormedTurn(events, 'cancelled');
+  });
+
   it('closes the SDK query when the consumer stops reading', async () => {
     const fake = replay(INIT, SUCCESS);
     const stream = new ClaudeEngineAdapter({ queryFactory: fake.factory }).startTurn(

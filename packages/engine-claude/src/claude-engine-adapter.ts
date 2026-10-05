@@ -52,8 +52,9 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     input: TurnInput,
     options: TurnOptions,
   ): AsyncIterable<NootEvent> {
+    // Events dropped after a cancel must not leave seq gaps, so the final seq is stamped at yield time.
     const sequence = new EventSequence(session.sessionId, options.turnId);
-    const mapper = new SdkMessageMapper(sequence);
+    const mapper = new SdkMessageMapper(new EventSequence(session.sessionId, options.turnId));
     const abortController = new AbortController();
     this.activeTurns.set(options.turnId, { abortController });
     const state: TurnState = { sawError: false, sessionEstablished: false };
@@ -74,7 +75,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
             }
             state.sawError = true;
           }
-          yield event;
+          yield { ...event, ...sequence.meta() };
         }
         if (abortController.signal.aborted) {
           break;
