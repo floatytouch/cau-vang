@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { APP_APPROVAL_TTL_MS, PendingApprovalStore } from '../../../src/braincore/mode/pending-approval-store.js';
+import {
+  APP_APPROVAL_TTL_MS,
+  PendingApprovalStore,
+} from '../../../src/braincore/mode/pending-approval-store.js';
 import { resolveTurnGate } from '../../../src/braincore/mode/resolve-turn-gate.js';
-import { createTurnToolPolicy, decideMutatingToolAccess } from '../../../src/braincore/mode/tool-access-policy.js';
+import {
+  createTurnToolPolicy,
+  decideMutatingToolAccess,
+} from '../../../src/braincore/mode/tool-access-policy.js';
 import {
   normalizeWorkMode,
   SAFE_WORK_MODE,
@@ -113,7 +119,9 @@ describe('harness tool bridge (belt and braces)', () => {
     expect(await locked.execute(WRITE_CALL)).toMatchObject({ ok: false, blocked: true });
 
     const open = registry.createBridge(createTurnToolPolicy(true));
-    expect(open.definitions.map((definition) => definition.name)).toContain(WRITE_SCRATCH_TOOL_NAME);
+    expect(open.definitions.map((definition) => definition.name)).toContain(
+      WRITE_SCRATCH_TOOL_NAME,
+    );
     expect(await open.execute(WRITE_CALL)).toEqual({ ok: true, result: { written: 'x' } });
   });
 
