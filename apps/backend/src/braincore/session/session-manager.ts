@@ -11,6 +11,7 @@ import { DEFAULT_LIVE_SESSION_CAP } from '../../config/app-config.js';
 import { writeFileAtomic } from '../persistence/atomic-write.js';
 import {
   DEFAULT_WORK_MODE,
+  invalidWorkModeMessage,
   isWorkMode,
   normalizeWorkMode,
   type WorkMode,
@@ -179,7 +180,7 @@ export class SessionManager {
 
   async setMode(sessionId: string, mode: WorkMode): Promise<StoredSession> {
     if (!isWorkMode(mode)) {
-      throw new Error(`invalid mode: ${String(mode)} (choose: auto, plan)`);
+      throw new Error(invalidWorkModeMessage(mode));
     }
     const session = this.requireSession(sessionId);
     session.mode = mode;

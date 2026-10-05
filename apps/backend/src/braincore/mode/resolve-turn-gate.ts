@@ -20,11 +20,10 @@ export interface ResolvedTurnGate {
 
 /** Plan mode stays locked unless this turn carries a fresh approval. */
 export function resolveTurnGate(input: ResolveTurnGateInput): ResolvedTurnGate {
-  const button = input.approvals.take(input.sessionId, input.nowMs);
-  const textApproved = isApproval(input.userText);
-  const buttonApproved = button === true;
-  const approvedThisTurn = textApproved || buttonApproved;
   const { currentMode } = input;
+  const button = input.approvals.take(input.sessionId, input.nowMs);
+  const startedInPlan = currentMode() === WORK_MODE_PLAN;
+  const approvedThisTurn = startedInPlan && isTurnApproved(button, input.userText);
   return {
     policy: {
       get allowMutating() {
@@ -33,4 +32,12 @@ export function resolveTurnGate(input: ResolveTurnGateInput): ResolvedTurnGate {
     },
     approvedThisTurn,
   };
+}
+
+// An explicit Reject tap outranks a casual "ok" typed in the same turn.
+function isTurnApproved(button: boolean | undefined, userText: string): boolean {
+  if (button === false) {
+    return false;
+  }
+  return button === true || isApproval(userText);
 }

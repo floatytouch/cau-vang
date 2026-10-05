@@ -69,6 +69,27 @@ describe('mode gate primitives', () => {
     expect(planGate('do the thing', approvals, 1_500).policy.allowMutating).toBe(false);
   });
 
+  it('lets a Reject tap outrank a text approval in the same turn', () => {
+    const approvals = new PendingApprovalStore();
+    approvals.queue('session-1', false, 1_000);
+    const gate = planGate('ok', approvals, 1_500);
+    expect(gate.approvedThisTurn).toBe(false);
+    expect(gate.policy.allowMutating).toBe(false);
+  });
+
+  it('does not carry an auto-mode "ok" into a mid-turn switch to plan', async () => {
+    let mode: WorkMode = WORK_MODE_AUTO;
+    const gate = resolveTurnGate({
+      currentMode: () => mode,
+      userText: 'ok',
+      sessionId: 'session-1',
+      approvals: new PendingApprovalStore(),
+    });
+    mode = WORK_MODE_PLAN;
+    expect(gate.approvedThisTurn).toBe(false);
+    expect(gate.policy.allowMutating).toBe(false);
+  });
+
   it('keeps one session approval out of another session', () => {
     const approvals = new PendingApprovalStore();
     approvals.queue('session-other', true, 1_000);

@@ -1,7 +1,4 @@
-/**
- * Per-turn policy handed into ToolRegistry so concurrent sessions stay independent.
- * Required on every registry call: a missing policy must not silently mean "allow".
- */
+/** Required on every registry call so a missing policy can never silently mean allow. */
 export interface ToolAccessPolicy {
   /** When false, mutating tools are omitted from harness bridges and refused on execute. */
   readonly allowMutating: boolean;

@@ -22,3 +22,7 @@ export function normalizeWorkMode(value: unknown): WorkMode {
   }
   return SAFE_WORK_MODE;
 }
+
+export function invalidWorkModeMessage(value: unknown): string {
+  return `invalid mode: ${JSON.stringify(value)} (choose: ${WORK_MODES.join(', ')})`;
+}

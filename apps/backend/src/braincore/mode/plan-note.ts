@@ -1,9 +1,6 @@
 import { WORK_MODE_PLAN, type WorkMode } from './work-mode.js';
 
-/**
- * Injected at the start of the engine-facing message when plan mode is on.
- * Kept out of stored history so the UI still shows what the user typed.
- */
+/** Engine-only prefix, kept out of stored history so the UI still shows what the user typed. */
 export function planNoteFor(mode: WorkMode): string {
   if (mode !== WORK_MODE_PLAN) {
     return '';

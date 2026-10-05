@@ -23,7 +23,12 @@ import { IdentityBuilder } from './identity/identity-builder.js';
 import { PendingApprovalStore } from './mode/pending-approval-store.js';
 import { planNoteFor } from './mode/plan-note.js';
 import { resolveTurnGate } from './mode/resolve-turn-gate.js';
-import { isWorkMode, WORK_MODE_PLAN, type WorkMode } from './mode/work-mode.js';
+import {
+  invalidWorkModeMessage,
+  isWorkMode,
+  WORK_MODE_PLAN,
+  type WorkMode,
+} from './mode/work-mode.js';
 import { SessionManager } from './session/session-manager.js';
 import {
   STORED_ROLE_INTERNAL,
@@ -123,7 +128,7 @@ export class BraincoreService extends EventEmitter {
 
   async setMode(sessionId: string, mode: string): Promise<WorkMode> {
     if (!isWorkMode(mode)) {
-      throw new Error(`invalid mode: ${JSON.stringify(mode)} (choose: auto, plan)`);
+      throw new Error(invalidWorkModeMessage(mode));
     }
     // Any mode change drops a pending tap so it cannot unlock a later, unrelated plan turn.
     this.pendingApprovals.clear(sessionId);

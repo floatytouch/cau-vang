@@ -6,10 +6,7 @@ interface PendingApproval {
   recordedAtMs: number;
 }
 
-/**
- * One-shot Approve/Reject from the UI. Consumed at the start of the next user turn.
- * Text approvals (`isApproval`) are separate and do not go through this store.
- */
+/** One-shot UI Approve/Reject, consumed by the next user turn; text approvals bypass it. */
 export class PendingApprovalStore {
   private readonly pending = new Map<string, PendingApproval>();
 

@@ -17,11 +17,12 @@ import {
 } from '@noot/shared';
 import type { Server, Socket } from 'socket.io';
 import { BRAINCORE_EVENT_CHANNEL, BraincoreService } from '../braincore.service.js';
+import type { WorkMode } from '../mode/work-mode.js';
 
 export interface GatewayAck {
   ok: boolean;
   error?: string;
-  mode?: string;
+  mode?: WorkMode;
 }
 
 @WebSocketGateway()
