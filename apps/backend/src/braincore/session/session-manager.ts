@@ -10,6 +10,13 @@ import {
 import { DEFAULT_LIVE_SESSION_CAP } from '../../config/app-config.js';
 import { writeFileAtomic } from '../persistence/atomic-write.js';
 import {
+  DEFAULT_WORK_MODE,
+  invalidWorkModeMessage,
+  isWorkMode,
+  normalizeWorkMode,
+  type WorkMode,
+} from '../mode/work-mode.js';
+import {
   DEFAULT_SESSION_TITLE,
   SESSION_ID_PATTERN,
   STORED_ROLE_INTERNAL,
@@ -106,6 +113,7 @@ export class SessionManager {
       messages: [],
       engineId,
       model,
+      mode: DEFAULT_WORK_MODE,
     };
     this.sessions.set(session.id, session);
     await this.persist(session);
@@ -166,6 +174,21 @@ export class SessionManager {
     return session;
   }
 
+  getMode(sessionId: string): WorkMode {
+    return this.requireSession(sessionId).mode;
+  }
+
+  async setMode(sessionId: string, mode: WorkMode): Promise<StoredSession> {
+    if (!isWorkMode(mode)) {
+      throw new Error(invalidWorkModeMessage(mode));
+    }
+    const session = this.requireSession(sessionId);
+    session.mode = mode;
+    session.updatedAt = new Date().toISOString();
+    await this.persist(session);
+    return session;
+  }
+
   async setEngineSessionToken(sessionId: string, token: string | undefined): Promise<void> {
     const session = this.requireSession(sessionId);
     if (token) {
@@ -186,6 +209,7 @@ export class SessionManager {
       messageCount: session.messages.length,
       engineId: session.engineId,
       model: session.model,
+      mode: session.mode,
       live: this.liveOrder.includes(session.id),
     };
   }
@@ -252,6 +276,9 @@ export class SessionManager {
     if (!parsed.engineId || !parsed.model || !Array.isArray(parsed.messages)) {
       throw new Error('missing engineId, model or messages');
     }
-    return parsed;
+    return {
+      ...parsed,
+      mode: normalizeWorkMode(parsed.mode),
+    };
   }
 }

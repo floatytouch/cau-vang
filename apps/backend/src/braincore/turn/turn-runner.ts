@@ -12,6 +12,7 @@ import {
   NOOT_EVENT_TYPE_TOOL_CALL,
   TOOL_CALL_PHASE_END,
   TOOL_CALL_PHASE_START,
+  TOOL_CALL_STATUS_BLOCKED,
   TOOL_CALL_STATUS_FAILED,
   TOOL_CALL_STATUS_SUCCEEDED,
   type ConversationMessage,
@@ -19,12 +20,14 @@ import {
   type EngineAdapter,
   type EngineSession,
   type NootEvent,
+  type ToolBridge,
   type ToolCallTerminalStatus,
   type ToolInvocation,
   type ToolOutcome,
   type TurnInput,
   type TurnOptions,
 } from '@noot/shared';
+import type { ToolAccessPolicy } from '../mode/tool-access-policy.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import {
   PROGRESS_STAGE_FINISHING,
@@ -47,6 +50,7 @@ export interface RunTurnParams {
   input: TurnInput;
   options: TurnOptions;
   toolRegistry: ToolRegistry;
+  toolAccessPolicy: ToolAccessPolicy;
 }
 
 interface StepOutcome {
@@ -65,9 +69,7 @@ export async function* runConversationTurn(params: RunTurnParams): AsyncGenerato
   yield progress(relay, PROGRESS_STAGE_STARTING, 0);
   try {
     if (isHarnessEngine(params.adapter.capabilities)) {
-      const step = yield* streamStep(params, params.session, params.input, relay);
-      yield progress(relay, PROGRESS_STAGE_FINISHING, 1);
-      yield relay.relay(step.done);
+      yield* runHarnessTurn(params, relay);
       return;
     }
     if (isBareApiEngine(params.adapter.capabilities)) {
@@ -79,6 +81,49 @@ export async function* runConversationTurn(params: RunTurnParams): AsyncGenerato
     yield relay.relay(failureEvent(relay, error));
     yield relay.relay({ ...relay.meta(), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_FAILED });
   }
+}
+
+async function* runHarnessTurn(
+  params: RunTurnParams,
+  relay: TurnEventRelay,
+): AsyncGenerator<NootEvent> {
+  const blockedCallIds = new Set<string>();
+  const tools = params.options.tools && trackBlockedCalls(params.options.tools, blockedCallIds);
+  const harnessParams = { ...params, options: { ...params.options, tools } };
+  const step = yield* streamStep(
+    harnessParams,
+    params.session,
+    params.input,
+    relay,
+    blockedCallIds,
+  );
+  yield progress(relay, PROGRESS_STAGE_FINISHING, 1);
+  yield relay.relay(step.done);
+}
+
+function trackBlockedCalls(bridge: ToolBridge, blockedCallIds: Set<string>): ToolBridge {
+  return {
+    definitions: bridge.definitions,
+    execute: async (invocation) => {
+      const outcome = await bridge.execute(invocation);
+      if (!outcome.ok && outcome.blocked) {
+        blockedCallIds.add(invocation.callId);
+      }
+      return outcome;
+    },
+  };
+}
+
+// Harness SDKs report a brain-gate refusal as a plain tool error; only the brain knows it was blocked.
+function markBlockedCall(event: NootEvent, blockedCallIds: ReadonlySet<string>): NootEvent {
+  if (
+    event.type !== NOOT_EVENT_TYPE_TOOL_CALL ||
+    event.phase !== TOOL_CALL_PHASE_END ||
+    !blockedCallIds.has(event.callId)
+  ) {
+    return event;
+  }
+  return { ...event, status: TOOL_CALL_STATUS_BLOCKED };
 }
 
 /** Settled design: one startTurn per model step; tool results go back in the NEXT step's input. */
@@ -101,7 +146,7 @@ async function* runBareApiToolLoop(
     yield progress(relay, PROGRESS_STAGE_RUNNING_TOOLS);
     const results: { callId: string; name: string; outcome: unknown }[] = [];
     for (const invocation of outcome.pendingTools) {
-      const toolOutcome = await params.toolRegistry.execute(invocation);
+      const toolOutcome = await params.toolRegistry.execute(invocation, params.toolAccessPolicy);
       yield relay.relay({
         ...relay.meta(),
         type: NOOT_EVENT_TYPE_TOOL_CALL,
@@ -129,6 +174,7 @@ async function* streamStep(
   session: EngineSession,
   input: TurnInput,
   relay: TurnEventRelay,
+  blockedCallIds: ReadonlySet<string> = new Set(),
 ): AsyncGenerator<NootEvent, StepOutcome> {
   const textParts: string[] = [];
   const pendingTools: ToolInvocation[] = [];
@@ -136,7 +182,7 @@ async function* streamStep(
     if (event.type === NOOT_EVENT_TYPE_DONE) {
       return { done: event, text: textParts.join(''), pendingTools };
     }
-    yield relay.relay(event);
+    yield relay.relay(markBlockedCall(event, blockedCallIds));
     if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
       textParts.push(event.text);
     }
@@ -173,6 +219,13 @@ function toolCallEndFields(toolOutcome: ToolOutcome): {
       status: TOOL_CALL_STATUS_SUCCEEDED,
       result: toolOutcome.result,
       error: undefined,
+    };
+  }
+  if (toolOutcome.blocked) {
+    return {
+      status: TOOL_CALL_STATUS_BLOCKED,
+      result: undefined,
+      error: toolOutcome.error,
     };
   }
   return {

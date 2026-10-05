@@ -7,6 +7,7 @@ import type {
   TurnOptions,
 } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
+import { createTurnToolPolicy } from '../../../src/braincore/mode/tool-access-policy.js';
 import { ToolRegistry } from '../../../src/braincore/tools/tool-registry.js';
 import {
   runConversationTurn,
@@ -63,6 +64,7 @@ async function runTurn(
     input: { text: 'now' },
     options: OPTIONS,
     toolRegistry: registry,
+    toolAccessPolicy: createTurnToolPolicy(true),
   })) {
     events.push(event);
   }
@@ -150,5 +152,54 @@ describe('runConversationTurn (bare API)', () => {
     });
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'failed' });
     expect(events[0]).toMatchObject({ type: 'progress', label: 'starting' });
+  });
+});
+
+describe('runConversationTurn (harness)', () => {
+  it('relabels a brain-gate refusal reported as a plain tool error to blocked', async () => {
+    const registry = new ToolRegistry();
+    registry.register({ name: 'write', description: '', inputSchema: {} }, async () => ({
+      ok: true,
+      result: null,
+    }));
+    const adapter: EngineAdapter = {
+      id: 'sdk-like',
+      capabilities: {
+        toolLoop: 'ownToolLoop',
+        thinkingStream: false,
+        sessions: false,
+        choices: false,
+      },
+      async *startTurn(_session, _input, options) {
+        const outcome = await options.tools!.execute({ callId: 'call-1', name: 'write', args: {} });
+        yield {
+          ...META,
+          type: 'tool_call',
+          phase: 'end',
+          callId: 'call-1',
+          name: 'write',
+          status: outcome.ok ? 'succeeded' : 'failed',
+        };
+        yield done();
+      },
+      async cancel() {},
+    };
+    const locked = createTurnToolPolicy(false);
+    const events: NootEvent[] = [];
+    for await (const event of runConversationTurn({
+      adapter,
+      session: { sessionId: 'session-1', history: [] },
+      input: { text: 'now' },
+      options: { ...OPTIONS, tools: registry.createBridge(locked) },
+      toolRegistry: registry,
+      toolAccessPolicy: locked,
+    })) {
+      events.push(event);
+    }
+
+    expect(events.find((event) => event.type === 'tool_call')).toMatchObject({
+      phase: 'end',
+      status: 'blocked',
+    });
   });
 });

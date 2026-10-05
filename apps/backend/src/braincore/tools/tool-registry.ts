@@ -1,30 +1,53 @@
 import type { ToolBridge, ToolDefinition, ToolInvocation, ToolOutcome } from '@noot/shared';
+import { decideMutatingToolAccess, type ToolAccessPolicy } from '../mode/tool-access-policy.js';
 
 export type ToolHandler = (args: unknown) => Promise<ToolOutcome>;
+
+export interface RegisterToolOptions {
+  /** Default true: unknown tools stay gated in plan mode (fail closed). */
+  mutating?: boolean;
+}
 
 interface RegisteredTool {
   definition: ToolDefinition;
   handler: ToolHandler;
+  mutating: boolean;
 }
 
 export class ToolRegistry {
   private readonly tools = new Map<string, RegisteredTool>();
 
-  register(definition: ToolDefinition, handler: ToolHandler): void {
+  register(
+    definition: ToolDefinition,
+    handler: ToolHandler,
+    options: RegisterToolOptions = {},
+  ): void {
     if (this.tools.has(definition.name)) {
       throw new Error(`Tool ${definition.name} is already registered`);
     }
-    this.tools.set(definition.name, { definition, handler });
+    this.tools.set(definition.name, {
+      definition,
+      handler,
+      mutating: options.mutating ?? true,
+    });
   }
 
-  definitions(): ToolDefinition[] {
-    return [...this.tools.values()].map((entry) => entry.definition);
+  definitions(policy: ToolAccessPolicy): ToolDefinition[] {
+    return [...this.tools.values()]
+      .filter((entry) => policy.allowMutating || !entry.mutating)
+      .map((entry) => entry.definition);
   }
 
-  async execute(invocation: ToolInvocation): Promise<ToolOutcome> {
+  async execute(invocation: ToolInvocation, policy: ToolAccessPolicy): Promise<ToolOutcome> {
     const entry = this.tools.get(invocation.name);
     if (!entry) {
       return { ok: false, error: `Unknown tool ${invocation.name}` };
+    }
+    if (entry.mutating) {
+      const decision = decideMutatingToolAccess(policy, invocation.name);
+      if (!decision.ok) {
+        return { ok: false, error: decision.reason, blocked: true };
+      }
     }
     try {
       return await entry.handler(invocation.args);
@@ -34,15 +57,16 @@ export class ToolRegistry {
     }
   }
 
-  createBridge(): ToolBridge {
+  createBridge(policy: ToolAccessPolicy): ToolBridge {
     return {
-      definitions: this.definitions(),
-      execute: (invocation: ToolInvocation) => this.execute(invocation),
+      definitions: this.definitions(policy),
+      execute: (invocation: ToolInvocation) => this.execute(invocation, policy),
     };
   }
 }
 
 export const ECHO_MESSAGE_TOOL_NAME = 'echo_message';
+export const WRITE_SCRATCH_TOOL_NAME = 'write_scratch';
 
 export function registerSampleTools(registry: ToolRegistry): void {
   registry.register(
@@ -60,6 +84,7 @@ export function registerSampleTools(registry: ToolRegistry): void {
       const message = typeof record.message === 'string' ? record.message : '';
       return { ok: true, result: { echoed: message } };
     },
+    { mutating: false },
   );
 
   registry.register(
@@ -82,6 +107,7 @@ export function registerSampleTools(registry: ToolRegistry): void {
       }
       return { ok: true, result: { sum: record.left + record.right } };
     },
+    { mutating: false },
   );
 
   registry.register(
@@ -91,5 +117,24 @@ export function registerSampleTools(registry: ToolRegistry): void {
       inputSchema: { type: 'object', properties: {} },
     },
     async () => ({ ok: true, result: { now: new Date().toISOString() } }),
+    { mutating: false },
+  );
+
+  registry.register(
+    {
+      name: WRITE_SCRATCH_TOOL_NAME,
+      description: 'Writes a scratch note (sample mutating brain tool).',
+      inputSchema: {
+        type: 'object',
+        properties: { note: { type: 'string' } },
+        required: ['note'],
+      },
+    },
+    async (args) => {
+      const record = args as { note?: string };
+      const note = typeof record.note === 'string' ? record.note : '';
+      return { ok: true, result: { written: note } };
+    },
+    { mutating: true },
   );
 }

@@ -20,6 +20,15 @@ import {
 } from '../config/app-config.js';
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
+import { PendingApprovalStore } from './mode/pending-approval-store.js';
+import { planNoteFor } from './mode/plan-note.js';
+import { resolveTurnGate } from './mode/resolve-turn-gate.js';
+import {
+  invalidWorkModeMessage,
+  isWorkMode,
+  WORK_MODE_PLAN,
+  type WorkMode,
+} from './mode/work-mode.js';
 import { SessionManager } from './session/session-manager.js';
 import {
   STORED_ROLE_INTERNAL,
@@ -55,6 +64,7 @@ export class BraincoreService extends EventEmitter {
   readonly usage: UsageRecorder;
   readonly maxChatTextLength: number;
   private readonly identityConfigDir: string;
+  private readonly pendingApprovals = new PendingApprovalStore();
   private identity: IdentityBuilder | undefined;
   private systemPrompt: string | undefined;
   private readonly activeTurns = new Map<string, EngineAdapter>();
@@ -104,11 +114,37 @@ export class BraincoreService extends EventEmitter {
   }
 
   async deleteSession(sessionId: string): Promise<boolean> {
+    this.pendingApprovals.clear(sessionId);
     return this.sessions.deleteSession(sessionId);
   }
 
   getHistory(sessionId: string): StoredMessage[] {
     return this.sessions.getHistory(sessionId);
+  }
+
+  getMode(sessionId: string): WorkMode {
+    return this.sessions.getMode(sessionId);
+  }
+
+  async setMode(sessionId: string, mode: string): Promise<WorkMode> {
+    if (!isWorkMode(mode)) {
+      throw new Error(invalidWorkModeMessage(mode));
+    }
+    // Any mode change drops a pending tap so it cannot unlock a later, unrelated plan turn.
+    this.pendingApprovals.clear(sessionId);
+    const session = await this.sessions.setMode(sessionId, mode);
+    return session.mode;
+  }
+
+  /** Queues a one-shot Approve/Reject for the next user turn on this session. */
+  queuePlanApproval(sessionId: string, approved: boolean): void {
+    const session = this.sessions.touchSession(sessionId);
+    if (session.mode !== WORK_MODE_PLAN) {
+      throw new Error(
+        `Session ${sessionId} is in ${session.mode} mode; plan_approve needs plan mode`,
+      );
+    }
+    this.pendingApprovals.queue(sessionId, approved);
   }
 
   async setEngine(sessionId: string, engineId: string, model: string): Promise<StoredSession> {
@@ -134,23 +170,31 @@ export class BraincoreService extends EventEmitter {
     try {
       const history = this.sessions.conversationMessages(sessionId);
       await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_USER, text);
+      const gate = resolveTurnGate({
+        currentMode: () => this.sessions.getMode(sessionId),
+        userText: text,
+        sessionId,
+        approvals: this.pendingApprovals,
+      });
+      const engineText = `${planNoteFor(session.mode)}${text}`;
       const turnId = randomUUID();
       this.activeTurns.set(turnId, adapter);
       try {
         const assistantText = await this.streamTurn({
           adapter,
           session: { sessionId, history },
-          input: { text },
+          input: { text: engineText },
           options: {
             turnId,
             model: session.model,
             systemPrompt,
             tools:
               adapter.capabilities.toolLoop === ENGINE_TOOL_LOOP_OWN
-                ? this.tools.createBridge()
+                ? this.tools.createBridge(gate.policy)
                 : undefined,
           },
           toolRegistry: this.tools,
+          toolAccessPolicy: gate.policy,
         });
         if (assistantText.trim()) {
           await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_ASSISTANT, assistantText);
