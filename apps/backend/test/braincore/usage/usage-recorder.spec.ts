@@ -3,9 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import type { UsageEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { normalizeUsageDay, utcDayOf } from './usage-day.js';
-import { TurnUsageAccumulator, USAGE_LOG_FILE_NAME, UsageRecorder } from './usage-recorder.js';
-import type { UsageRecord } from './usage-types.js';
+import { normalizeUsageDay, utcDayOf } from '../../../src/braincore/usage/usage-day.js';
+import { TurnUsageAccumulator, USAGE_LOG_FILE_NAME, UsageRecorder } from '../../../src/braincore/usage/usage-recorder.js';
+import type { UsageRecord } from '../../../src/braincore/usage/usage-types.js';
 
 const DAY = '2026-10-05';
 

@@ -3,15 +3,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { isNootEvent, type EngineAdapter, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../config/app-config.js';
-import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from '../braincore.service.js';
+import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../../src/config/app-config.js';
+import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from '../../../src/braincore/braincore.service.js';
 import {
   MOCK_ENGINE_ID,
   MOCK_USAGE_COST_USD,
   MOCK_USAGE_INPUT_TOKENS,
   MOCK_USAGE_OUTPUT_TOKENS,
-} from '../testing/mock-engine-adapter.js';
-import { PROGRESS_STAGE } from './progress-stages.js';
+} from '../../../src/braincore/testing/mock-engine-adapter.js';
+import { PROGRESS_STAGE } from '../../../src/braincore/usage/progress-stages.js';
 
 async function startService(dataDir: string): Promise<BraincoreService> {
   const service = new BraincoreService({

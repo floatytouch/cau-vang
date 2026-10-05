@@ -185,13 +185,8 @@ export class BraincoreService extends EventEmitter {
       if (event.type === NOOT_EVENT_TYPE_TEXT_DELTA) {
         textParts.push(event.text);
       }
-<<<<<<< HEAD
       if (event.type === NOOT_EVENT_TYPE_DONE) {
-        await this.persistTurnUsage(accumulator, Date.now() - startedAt);
-=======
-      if (event.type === 'done') {
         await this.usage.recordTurn(accumulator.finalize(Date.now() - startedAt));
->>>>>>> edc0a6d (NV-8 harden usage records: unknown cost, requested model, fail-safe rollup)
       }
     }
     return textParts.join('');

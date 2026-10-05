@@ -7,6 +7,7 @@ import {
   isHarnessEngine,
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_ERROR,
+  NOOT_EVENT_TYPE_PROGRESS,
   NOOT_EVENT_TYPE_TEXT_DELTA,
   NOOT_EVENT_TYPE_TOOL_CALL,
   TOOL_CALL_PHASE_END,
@@ -144,7 +145,7 @@ async function* streamStep(
 function progress(relay: TurnEventRelay, label: string, fraction?: number): NootEvent {
   return relay.relay({
     ...relay.meta(),
-    type: 'progress',
+    type: NOOT_EVENT_TYPE_PROGRESS,
     label,
     ...(fraction === undefined ? {} : { fraction }),
   });

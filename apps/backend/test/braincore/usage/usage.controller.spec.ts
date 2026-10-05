@@ -7,21 +7,21 @@ import { Test } from '@nestjs/testing';
 import { USAGE_DAILY_PATH, type DailyUsageResponse } from '@noot/shared';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../config/app-config.js';
+import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../../src/config/app-config.js';
 import {
   BRAINCORE_OPTIONS,
   BraincoreService,
   type BraincoreServiceOptions,
-} from '../braincore.service.js';
+} from '../../../src/braincore/braincore.service.js';
 import {
   MOCK_ENGINE_ID,
   MOCK_USAGE_COST_USD,
   MOCK_USAGE_INPUT_TOKENS,
   MOCK_USAGE_OUTPUT_TOKENS,
-} from '../testing/mock-engine-adapter.js';
-import { UsageController } from './usage.controller.js';
-import { utcDayOf } from './usage-day.js';
-import { USAGE_LOG_FILE_NAME } from './usage-recorder.js';
+} from '../../../src/braincore/testing/mock-engine-adapter.js';
+import { UsageController } from '../../../src/braincore/usage/usage.controller.js';
+import { utcDayOf } from '../../../src/braincore/usage/usage-day.js';
+import { USAGE_LOG_FILE_NAME } from '../../../src/braincore/usage/usage-recorder.js';
 
 describe('GET /usage/daily', () => {
   let app: INestApplication;
