@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type {
   EngineAdapter,
   EngineCapabilities,
@@ -5,10 +6,12 @@ import type {
   NootEvent,
   TurnOptions,
 } from '@noot/shared';
-import { MOCK_USE_ECHO_TOOL_MARKER, TOOL_RESULTS_INPUT_PREFIX } from '../session/session-types.js';
-import { newToolCallId } from '../tools/tool-registry.js';
+import { TOOL_RESULTS_INPUT_PREFIX } from '../turn/turn-runner.js';
 
 export const MOCK_ENGINE_ID = 'mock';
+
+/** Typed text containing this makes the bare-API mock request the echo_message tool. */
+export const MOCK_USE_ECHO_TOOL_MARKER = 'USE_ECHO_TOOL';
 
 export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
   toolLoop: 'bareApi',
@@ -56,7 +59,7 @@ export function createMockBareApiAdapter(): EngineAdapter {
       }
 
       if (input.text.includes(MOCK_USE_ECHO_TOOL_MARKER)) {
-        const callId = newToolCallId();
+        const callId = randomUUID();
         yield {
           ...meta(session, options, 0),
           type: 'thinking_delta',

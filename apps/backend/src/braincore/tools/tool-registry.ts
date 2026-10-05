@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto';
-import type { ToolDefinition, ToolInvocation, ToolOutcome } from '@noot/shared';
+import type { ToolBridge, ToolDefinition, ToolInvocation, ToolOutcome } from '@noot/shared';
 
 export type ToolHandler = (args: unknown) => Promise<ToolOutcome>;
 
@@ -12,6 +11,9 @@ export class ToolRegistry {
   private readonly tools = new Map<string, RegisteredTool>();
 
   register(definition: ToolDefinition, handler: ToolHandler): void {
+    if (this.tools.has(definition.name)) {
+      throw new Error(`Tool ${definition.name} is already registered`);
+    }
     this.tools.set(definition.name, { definition, handler });
   }
 
@@ -24,13 +26,17 @@ export class ToolRegistry {
     if (!entry) {
       return { ok: false, error: `Unknown tool ${invocation.name}` };
     }
-    return entry.handler(invocation.args);
+    try {
+      return await entry.handler(invocation.args);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      return { ok: false, error: `Tool ${invocation.name} threw: ${reason}` };
+    }
   }
 
-  createBridge() {
-    const definitions = this.definitions();
+  createBridge(): ToolBridge {
     return {
-      definitions,
+      definitions: this.definitions(),
       execute: (invocation: ToolInvocation) => this.execute(invocation),
     };
   }
@@ -84,8 +90,4 @@ export function registerSampleTools(registry: ToolRegistry): void {
     },
     async () => ({ ok: true, result: { now: new Date().toISOString() } }),
   );
-}
-
-export function newToolCallId(): string {
-  return randomUUID();
 }

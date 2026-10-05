@@ -1,20 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import type { NootEvent } from '@noot/shared';
-import { resolveBraincoreDataDir, resolveIdentityConfigDir } from './braincore-paths.js';
+import type { EngineAdapter, NootEvent } from '@noot/shared';
+import {
+  resolveBraincoreDataDir,
+  resolveIdentityConfigDir,
+  resolveMockEnginesEnabled,
+} from './braincore-paths.js';
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
 import { SessionManager } from './session/session-manager.js';
 import {
   createMockBareApiAdapter,
   createMockHarnessAdapter,
-  MOCK_ENGINE_ID,
 } from './testing/mock-engine-adapter.js';
 import { registerSampleTools, ToolRegistry } from './tools/tool-registry.js';
 import { runConversationTurn } from './turn/turn-runner.js';
 
 export const BRAINCORE_EVENT_CHANNEL = 'noot_event';
+
+export const BRAINCORE_OPTIONS = Symbol('BRAINCORE_OPTIONS');
 
 export interface BraincoreServiceOptions {
   dataDir?: string;
@@ -25,37 +30,36 @@ export interface BraincoreServiceOptions {
 @Injectable()
 export class BraincoreService extends EventEmitter {
   readonly sessions: SessionManager;
-  readonly engines: EngineRegistry;
-  readonly tools: ToolRegistry;
-  private systemPromptPromise: Promise<string> | undefined;
-  private readonly activeTurns = new Map<string, AbortController>();
+  readonly engines = new EngineRegistry();
+  readonly tools = new ToolRegistry();
+  private readonly identityConfigDir: string;
+  private systemPrompt: string | undefined;
+  private readonly activeTurns = new Map<string, EngineAdapter>();
 
-  constructor(options: BraincoreServiceOptions = {}) {
+  constructor(@Optional() @Inject(BRAINCORE_OPTIONS) options: BraincoreServiceOptions | null) {
     super();
-    const dataDir = options.dataDir ?? resolveBraincoreDataDir();
-    const identityConfigDir = options.identityConfigDir ?? resolveIdentityConfigDir();
-    this.sessions = new SessionManager({ dataDir });
-    this.engines = new EngineRegistry();
-    this.tools = new ToolRegistry();
+    const resolved = options ?? {};
+    this.sessions = new SessionManager({ dataDir: resolved.dataDir ?? resolveBraincoreDataDir() });
+    this.identityConfigDir = resolved.identityConfigDir ?? resolveIdentityConfigDir();
     registerSampleTools(this.tools);
-    this.systemPromptPromise = IdentityBuilder.load(identityConfigDir).then((builder) =>
-      builder.buildSystemPrompt(),
-    );
-    if (options.registerMocks !== false) {
+    if (resolved.registerMocks ?? resolveMockEnginesEnabled()) {
       this.engines.register(createMockBareApiAdapter());
       this.engines.register(createMockHarnessAdapter());
     }
   }
 
   async initialize(): Promise<void> {
+    const identity = await IdentityBuilder.load(this.identityConfigDir);
+    this.systemPrompt = await identity.buildSystemPrompt();
     await this.sessions.initialize();
   }
 
-  async listSessions() {
+  listSessions() {
     return this.sessions.listSessions();
   }
 
   async createSession(engineId: string, model: string, title?: string) {
+    this.engines.get(engineId);
     return this.sessions.createSession(engineId, model, title);
   }
 
@@ -68,88 +72,81 @@ export class BraincoreService extends EventEmitter {
   }
 
   async setEngine(sessionId: string, engineId: string, model: string) {
-    if (!this.engines.has(engineId)) {
-      throw new Error(`Unknown engine ${engineId}`);
-    }
+    this.engines.get(engineId);
     return this.sessions.setEngine(sessionId, engineId, model);
   }
 
+  /** A background job's result: stored as `internal`, emitted as its own note turn. */
   async postInternalTurn(sessionId: string, source: string, text: string): Promise<void> {
     await this.sessions.appendMessage(sessionId, 'internal', text);
-    const turnId = randomUUID();
-    const note: NootEvent = {
-      type: 'internal_note',
-      sessionId,
-      turnId,
-      seq: 0,
-      emittedAt: new Date().toISOString(),
-      source,
-      text,
-    };
-    this.emitEvent(note);
+    const meta = { sessionId, turnId: randomUUID(), emittedAt: new Date().toISOString() };
+    this.emitEvent({ ...meta, seq: 0, type: 'internal_note', source, text });
+    this.emitEvent({ ...meta, seq: 1, type: 'done', reason: 'completed' });
   }
 
   async sendUserMessage(sessionId: string, text: string): Promise<string> {
+    const systemPrompt = this.requireSystemPrompt();
     const session = this.sessions.touchSession(sessionId);
     const adapter = this.engines.get(session.engineId);
-    await this.sessions.appendMessage(sessionId, 'user', text);
-
-    const turnId = randomUUID();
-    const systemPrompt = await this.requireSystemPrompt();
-    const engineSession = {
-      sessionId,
-      history: this.sessions.conversationMessages(sessionId),
-    };
-
-    const options = {
-      turnId,
-      model: session.model,
-      systemPrompt,
-      tools:
-        adapter.capabilities.toolLoop === 'ownToolLoop' ? this.tools.createBridge() : undefined,
-    };
-
-    const assistantParts: string[] = [];
-    const stream = runConversationTurn({
-      adapter,
-      session: engineSession,
-      input: { text },
-      options,
-      toolRegistry: this.tools,
-    });
-
-    for await (const event of stream) {
-      this.emitEvent(event);
-      if (event.type === 'text_delta') {
-        assistantParts.push(event.text);
+    if (!this.sessions.beginTurn(sessionId)) {
+      throw new Error(`Session ${sessionId} already has a running turn`);
+    }
+    try {
+      const history = this.sessions.conversationMessages(sessionId);
+      await this.sessions.appendMessage(sessionId, 'user', text);
+      const turnId = randomUUID();
+      this.activeTurns.set(turnId, adapter);
+      try {
+        const assistantText = await this.streamTurn({
+          adapter,
+          session: { sessionId, history },
+          input: { text },
+          options: {
+            turnId,
+            model: session.model,
+            systemPrompt,
+            tools:
+              adapter.capabilities.toolLoop === 'ownToolLoop'
+                ? this.tools.createBridge()
+                : undefined,
+          },
+          toolRegistry: this.tools,
+        });
+        if (assistantText.trim()) {
+          await this.sessions.appendMessage(sessionId, 'assistant', assistantText);
+        }
+      } finally {
+        this.activeTurns.delete(turnId);
       }
+      return turnId;
+    } finally {
+      this.sessions.endTurn(sessionId);
     }
-
-    const assistantText = assistantParts.join('').trim();
-    if (assistantText) {
-      await this.sessions.appendMessage(sessionId, 'assistant', assistantText);
-    }
-    return turnId;
   }
 
   async cancelTurn(turnId: string): Promise<void> {
-    const controller = this.activeTurns.get(turnId);
-    controller?.abort();
-    for (const engineId of this.engines.listIds()) {
-      await this.engines.get(engineId).cancel(turnId);
+    await this.activeTurns.get(turnId)?.cancel(turnId);
+  }
+
+  private async streamTurn(params: Parameters<typeof runConversationTurn>[0]): Promise<string> {
+    const textParts: string[] = [];
+    for await (const event of runConversationTurn(params)) {
+      this.emitEvent(event);
+      if (event.type === 'text_delta') {
+        textParts.push(event.text);
+      }
     }
+    return textParts.join('');
   }
 
   private emitEvent(event: NootEvent): void {
     this.emit(BRAINCORE_EVENT_CHANNEL, event);
   }
 
-  private async requireSystemPrompt(): Promise<string> {
-    if (!this.systemPromptPromise) {
-      throw new Error('Identity builder was not configured');
+  private requireSystemPrompt(): string {
+    if (this.systemPrompt === undefined) {
+      throw new Error('BraincoreService.initialize() must finish before turns run');
     }
-    return this.systemPromptPromise;
+    return this.systemPrompt;
   }
 }
-
-export { MOCK_ENGINE_ID };

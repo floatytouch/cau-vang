@@ -32,3 +32,8 @@ yarn dev     # shared watch + backend on :3000 + Vite dev server (proxies /healt
 
 Backend port: `PORT` (default 3000). The Vite dev proxy targets `BACKEND_URL`
 (default `http://localhost:3000`).
+
+BrainCore (`apps/backend/src/braincore/`): sessions persist under
+`NOOT_BRAINCORE_DATA_DIR` (default `apps/backend/data/braincore`), identity config
+is read from `NOOT_IDENTITY_CONFIG_DIR` (default `apps/backend/config/braincore`).
+Set `NOOT_BRAINCORE_MOCK_ENGINES=1` to register the mock engines for local dev.

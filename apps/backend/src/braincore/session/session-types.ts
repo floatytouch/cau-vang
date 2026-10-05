@@ -32,6 +32,5 @@ export const DEFAULT_SESSION_TITLE = 'New chat';
 
 export const DEFAULT_LIVE_SESSION_CAP = 3;
 
-export const MOCK_USE_ECHO_TOOL_MARKER = 'USE_ECHO_TOOL';
-
-export const TOOL_RESULTS_INPUT_PREFIX = '__tool_results__:';
+/** Session ids are server-allocated UUIDs; anything else never reaches a file path. */
+export const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

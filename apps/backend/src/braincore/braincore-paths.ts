@@ -22,3 +22,8 @@ export function resolveIdentityConfigDir(env: NodeJS.ProcessEnv = process.env): 
   }
   return path.resolve(DEFAULT_IDENTITY_CONFIG_DIR);
 }
+
+/** Mock engines are for local dev and tests only; production registers real adapters. */
+export function resolveMockEnginesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NOOT_BRAINCORE_MOCK_ENGINES?.trim() === '1';
+}
