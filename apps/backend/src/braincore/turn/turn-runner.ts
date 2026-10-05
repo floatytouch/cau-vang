@@ -49,7 +49,7 @@ export interface RunTurnParams {
   input: TurnInput;
   options: TurnOptions;
   toolRegistry: ToolRegistry;
-  toolAccessPolicy?: ToolAccessPolicy;
+  toolAccessPolicy: ToolAccessPolicy;
 }
 
 interface StepOutcome {

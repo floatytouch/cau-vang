@@ -1,10 +1,11 @@
 import type { WorkMode } from './work-mode.js';
 import { isApproval } from './approval.js';
-import { createTurnToolPolicy, type ToolAccessPolicy } from './tool-access-policy.js';
+import type { ToolAccessPolicy } from './tool-access-policy.js';
 import type { PendingApprovalStore } from './pending-approval-store.js';
 
 export interface ResolveTurnGateInput {
-  mode: WorkMode;
+  /** Read on every tool call, so switching to plan mid-turn locks the rest of that turn. */
+  currentMode: () => WorkMode;
   userText: string;
   sessionId: string;
   approvals: PendingApprovalStore;
@@ -23,9 +24,13 @@ export function resolveTurnGate(input: ResolveTurnGateInput): ResolvedTurnGate {
   const textApproved = isApproval(input.userText);
   const buttonApproved = button === true;
   const approvedThisTurn = textApproved || buttonApproved;
-  const allowMutating = input.mode !== 'plan' || approvedThisTurn;
+  const { currentMode } = input;
   return {
-    policy: createTurnToolPolicy(allowMutating),
+    policy: {
+      get allowMutating() {
+        return approvedThisTurn || currentMode() !== 'plan';
+      },
+    },
     approvedThisTurn,
   };
 }

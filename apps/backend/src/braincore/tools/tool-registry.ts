@@ -32,13 +32,13 @@ export class ToolRegistry {
     });
   }
 
-  definitions(policy?: ToolAccessPolicy): ToolDefinition[] {
+  definitions(policy: ToolAccessPolicy): ToolDefinition[] {
     return [...this.tools.values()]
-      .filter((entry) => policy?.allowMutating !== false || !entry.mutating)
+      .filter((entry) => policy.allowMutating || !entry.mutating)
       .map((entry) => entry.definition);
   }
 
-  async execute(invocation: ToolInvocation, policy?: ToolAccessPolicy): Promise<ToolOutcome> {
+  async execute(invocation: ToolInvocation, policy: ToolAccessPolicy): Promise<ToolOutcome> {
     const entry = this.tools.get(invocation.name);
     if (!entry) {
       return { ok: false, error: `Unknown tool ${invocation.name}` };
@@ -57,7 +57,7 @@ export class ToolRegistry {
     }
   }
 
-  createBridge(policy?: ToolAccessPolicy): ToolBridge {
+  createBridge(policy: ToolAccessPolicy): ToolBridge {
     return {
       definitions: this.definitions(policy),
       execute: (invocation: ToolInvocation) => this.execute(invocation, policy),

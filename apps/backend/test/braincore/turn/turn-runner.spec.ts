@@ -7,6 +7,7 @@ import type {
   TurnOptions,
 } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
+import { createTurnToolPolicy } from '../../../src/braincore/mode/tool-access-policy.js';
 import { ToolRegistry } from '../../../src/braincore/tools/tool-registry.js';
 import {
   runConversationTurn,
@@ -63,6 +64,7 @@ async function runTurn(
     input: { text: 'now' },
     options: OPTIONS,
     toolRegistry: registry,
+    toolAccessPolicy: createTurnToolPolicy(true),
   })) {
     events.push(event);
   }

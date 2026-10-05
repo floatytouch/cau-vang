@@ -125,16 +125,20 @@ export class BraincoreService extends EventEmitter {
     if (!isWorkMode(mode)) {
       throw new Error(`invalid mode: ${JSON.stringify(mode)} (choose: auto, plan)`);
     }
-    if (mode !== WORK_MODE_PLAN) {
-      this.pendingApprovals.clear(sessionId);
-    }
+    // Any mode change drops a pending tap so it cannot unlock a later, unrelated plan turn.
+    this.pendingApprovals.clear(sessionId);
     const session = await this.sessions.setMode(sessionId, mode);
     return session.mode;
   }
 
   /** Queues a one-shot Approve/Reject for the next user turn on this session. */
   queuePlanApproval(sessionId: string, approved: boolean): void {
-    this.sessions.touchSession(sessionId);
+    const session = this.sessions.touchSession(sessionId);
+    if (session.mode !== WORK_MODE_PLAN) {
+      throw new Error(
+        `Session ${sessionId} is in ${session.mode} mode; plan_approve needs plan mode`,
+      );
+    }
     this.pendingApprovals.queue(sessionId, approved);
   }
 
@@ -162,7 +166,7 @@ export class BraincoreService extends EventEmitter {
       const history = this.sessions.conversationMessages(sessionId);
       await this.sessions.appendMessage(sessionId, CONVERSATION_ROLE_USER, text);
       const gate = resolveTurnGate({
-        mode: session.mode,
+        currentMode: () => this.sessions.getMode(sessionId),
         userText: text,
         sessionId,
         approvals: this.pendingApprovals,

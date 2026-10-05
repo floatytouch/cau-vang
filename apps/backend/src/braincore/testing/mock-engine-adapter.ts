@@ -173,17 +173,12 @@ export function createMockHarnessAdapter(): EngineAdapter {
           args: { note: 'from-harness' },
         } satisfies NootEvent;
         const offered = tools.definitions.some((definition) => definition.name === 'write_scratch');
-        const outcome = offered
-          ? await tools.execute({
-              callId,
-              name: 'write_scratch',
-              args: { note: 'from-harness' },
-            })
-          : {
-              ok: false as const,
-              error: 'write_scratch omitted from plan-mode tool set',
-              blocked: true,
-            };
+        // Calls even when not offered: models a harness that ignores the tool list, so the execute gate is exercised.
+        const outcome = await tools.execute({
+          callId,
+          name: 'write_scratch',
+          args: { note: 'from-harness' },
+        });
         yield {
           ...meta(session, options, 1),
           type: 'tool_call',
@@ -197,7 +192,7 @@ export function createMockHarnessAdapter(): EngineAdapter {
         yield {
           ...meta(session, options, 2),
           type: 'text_delta',
-          text: `harness-write:${outcome.ok ? 'ok' : 'blocked'}`,
+          text: `harness-write:offered=${offered}:${outcome.ok ? 'ok' : 'blocked'}`,
         } satisfies NootEvent;
         yield {
           ...meta(session, options, 3),

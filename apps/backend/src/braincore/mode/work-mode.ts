@@ -12,9 +12,9 @@ export function isWorkMode(value: unknown): value is WorkMode {
   return value === WORK_MODE_AUTO || value === WORK_MODE_PLAN;
 }
 
-/** Missing mode defaults to auto; any other value fails closed to plan. */
+/** An absent key (pre-mode session file) defaults to auto; any other value fails closed to plan. */
 export function normalizeWorkMode(value: unknown): WorkMode {
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     return DEFAULT_WORK_MODE;
   }
   if (isWorkMode(value)) {

@@ -1,4 +1,7 @@
-/** Per-turn policy handed into ToolRegistry so concurrent sessions stay independent. */
+/**
+ * Per-turn policy handed into ToolRegistry so concurrent sessions stay independent.
+ * Required on every registry call: a missing policy must not silently mean "allow".
+ */
 export interface ToolAccessPolicy {
   /** When false, mutating tools are omitted from harness bridges and refused on execute. */
   readonly allowMutating: boolean;
@@ -9,10 +12,10 @@ export function createTurnToolPolicy(allowMutating: boolean): ToolAccessPolicy {
 }
 
 export function decideMutatingToolAccess(
-  policy: ToolAccessPolicy | undefined,
+  policy: ToolAccessPolicy,
   toolName: string,
 ): { ok: true } | { ok: false; reason: string } {
-  if (!policy || policy.allowMutating) {
+  if (policy.allowMutating) {
     return { ok: true };
   }
   return {
