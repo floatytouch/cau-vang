@@ -58,10 +58,7 @@ describe('Chat UI against a mock funnel', () => {
 
   it('model picker changes engine without dropping history', async () => {
     const funnel = new MockFunnel({
-      events: [
-        textEvent('kept reply', 0),
-        doneEvent(1),
-      ],
+      events: [textEvent('kept reply', 0), doneEvent(1)],
     });
     render(<App funnel={funnel} />);
     await screen.findByText('Funnel: Connected');

@@ -149,11 +149,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
 
         <div className="noot-messages" aria-live="polite">
           {state.history.map((message, index) => (
-            <div
-              key={`${message.ts}-${index}`}
-              className="noot-bubble"
-              data-role={message.role}
-            >
+            <div key={`${message.ts}-${index}`} className="noot-bubble" data-role={message.role}>
               {message.text}
             </div>
           ))}

@@ -42,9 +42,7 @@ export function ModelPicker({ engines, engineId, model, disabled, onChange }: Mo
           disabled={disabled || models.length === 0}
           onChange={(event) => onChange(engineId, event.target.value)}
         >
-          {models.includes(model) ? null : (
-            <option value={model}>{model}</option>
-          )}
+          {models.includes(model) ? null : <option value={model}>{model}</option>}
           {models.map((item) => (
             <option key={item} value={item}>
               {item}

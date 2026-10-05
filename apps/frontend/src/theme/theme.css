@@ -46,8 +46,7 @@ body {
   font-family: var(--noot-font);
   background:
     radial-gradient(1200px 600px at 10% -10%, rgb(15 107 76 / 12%), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgb(45 90 140 / 10%), transparent 55%),
-    var(--noot-bg);
+    radial-gradient(900px 500px at 100% 0%, rgb(45 90 140 / 10%), transparent 55%), var(--noot-bg);
   color: var(--noot-ink);
 }
 
