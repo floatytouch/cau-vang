@@ -199,7 +199,11 @@ export function createMockHarnessAdapter(): EngineAdapter {
           type: 'text_delta',
           text: `harness-write:${outcome.ok ? 'ok' : 'blocked'}`,
         } satisfies NootEvent;
-        yield { ...meta(session, options, 3), type: 'done', reason: 'completed' } satisfies NootEvent;
+        yield {
+          ...meta(session, options, 3),
+          type: 'done',
+          reason: 'completed',
+        } satisfies NootEvent;
         return;
       }
 

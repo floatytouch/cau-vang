@@ -66,8 +66,7 @@ export interface ToolInvocation {
 }
 
 export type ToolOutcome =
-  | { ok: true; result: unknown }
-  | { ok: false; error: string; blocked?: boolean };
+  { ok: true; result: unknown } | { ok: false; error: string; blocked?: boolean };
 
 /** Brain-owned tools handed to a harness engine; `execute` applies the brain's gates. */
 export interface ToolBridge {

@@ -94,11 +94,7 @@ export function isApproval(text: string): boolean {
 }
 
 function stripAccents(text: string): string {
-  return text
-    .toLowerCase()
-    .replaceAll('đ', 'd')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '');
+  return text.toLowerCase().replaceAll('đ', 'd').normalize('NFD').replace(/\p{M}/gu, '');
 }
 
 function approvePhraseLength(words: string[], start: number): number {

@@ -48,7 +48,9 @@ describe('Plan/Auto mode gate (NV-7)', () => {
     await service.setMode(session.id, 'plan');
     const planEvents = collectEvents(service);
     await service.sendUserMessage(session.id, `please ${MOCK_USE_WRITE_TOOL_MARKER}`);
-    expect(planEvents.find((event) => event.type === 'tool_call' && event.phase === 'end')).toMatchObject({
+    expect(
+      planEvents.find((event) => event.type === 'tool_call' && event.phase === 'end'),
+    ).toMatchObject({
       status: 'blocked',
       name: 'write_scratch',
     });
@@ -57,7 +59,9 @@ describe('Plan/Auto mode gate (NV-7)', () => {
     await service.setMode(session.id, 'auto');
     const autoEvents = collectEvents(service);
     await service.sendUserMessage(session.id, `go ${MOCK_USE_WRITE_TOOL_MARKER}`);
-    expect(autoEvents.find((event) => event.type === 'tool_call' && event.phase === 'end')).toMatchObject({
+    expect(
+      autoEvents.find((event) => event.type === 'tool_call' && event.phase === 'end'),
+    ).toMatchObject({
       status: 'succeeded',
       name: 'write_scratch',
     });
@@ -68,7 +72,9 @@ describe('Plan/Auto mode gate (NV-7)', () => {
     await service.setMode(session.id, 'plan');
     const planEvents = collectEvents(service);
     await service.sendUserMessage(session.id, `please ${MOCK_USE_WRITE_TOOL_MARKER}`);
-    expect(planEvents.find((event) => event.type === 'tool_call' && event.phase === 'end')).toMatchObject({
+    expect(
+      planEvents.find((event) => event.type === 'tool_call' && event.phase === 'end'),
+    ).toMatchObject({
       status: 'blocked',
       name: 'write_scratch',
     });
@@ -77,7 +83,9 @@ describe('Plan/Auto mode gate (NV-7)', () => {
     await service.setMode(session.id, 'auto');
     const autoEvents = collectEvents(service);
     await service.sendUserMessage(session.id, `go ${MOCK_USE_WRITE_TOOL_MARKER}`);
-    expect(autoEvents.find((event) => event.type === 'tool_call' && event.phase === 'end')).toMatchObject({
+    expect(
+      autoEvents.find((event) => event.type === 'tool_call' && event.phase === 'end'),
+    ).toMatchObject({
       status: 'succeeded',
       name: 'write_scratch',
     });
@@ -99,7 +107,9 @@ describe('Plan/Auto mode gate (NV-7)', () => {
 
     const unlocked = collectEvents(service);
     await service.sendUserMessage(session.id, `run ${MOCK_USE_WRITE_TOOL_MARKER}`);
-    expect(unlocked.find((event) => event.type === 'tool_call' && event.phase === 'end')).toMatchObject({
+    expect(
+      unlocked.find((event) => event.type === 'tool_call' && event.phase === 'end'),
+    ).toMatchObject({
       status: 'succeeded',
     });
 

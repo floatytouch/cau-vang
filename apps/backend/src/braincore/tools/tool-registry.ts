@@ -1,8 +1,5 @@
 import type { ToolBridge, ToolDefinition, ToolInvocation, ToolOutcome } from '@noot/shared';
-import {
-  decideMutatingToolAccess,
-  type ToolAccessPolicy,
-} from '../mode/tool-access-policy.js';
+import { decideMutatingToolAccess, type ToolAccessPolicy } from '../mode/tool-access-policy.js';
 
 export type ToolHandler = (args: unknown) => Promise<ToolOutcome>;
 
@@ -41,10 +38,7 @@ export class ToolRegistry {
       .map((entry) => entry.definition);
   }
 
-  async execute(
-    invocation: ToolInvocation,
-    policy?: ToolAccessPolicy,
-  ): Promise<ToolOutcome> {
+  async execute(invocation: ToolInvocation, policy?: ToolAccessPolicy): Promise<ToolOutcome> {
     const entry = this.tools.get(invocation.name);
     if (!entry) {
       return { ok: false, error: `Unknown tool ${invocation.name}` };

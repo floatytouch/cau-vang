@@ -104,10 +104,7 @@ async function* runBareApiToolLoop(
     yield progress(relay, PROGRESS_STAGE_RUNNING_TOOLS);
     const results: { callId: string; name: string; outcome: unknown }[] = [];
     for (const invocation of outcome.pendingTools) {
-      const toolOutcome = await params.toolRegistry.execute(
-        invocation,
-        params.toolAccessPolicy,
-      );
+      const toolOutcome = await params.toolRegistry.execute(invocation, params.toolAccessPolicy);
       yield relay.relay({
         ...relay.meta(),
         type: NOOT_EVENT_TYPE_TOOL_CALL,
