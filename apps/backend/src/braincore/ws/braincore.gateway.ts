@@ -16,8 +16,6 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { BRAINCORE_EVENT_CHANNEL, BraincoreService } from '../braincore.service.js';
 
-export const MAX_CHAT_TEXT_LENGTH = 100_000;
-
 export interface GatewayAck {
   ok: boolean;
   error?: string;
@@ -61,8 +59,9 @@ export class BraincoreGateway implements OnGatewayInit {
     if (!sessionId || !text?.trim()) {
       return { ok: false, error: 'sessionId and text are required strings' };
     }
-    if (text.length > MAX_CHAT_TEXT_LENGTH) {
-      return { ok: false, error: `text exceeds ${MAX_CHAT_TEXT_LENGTH} characters` };
+    const maxLength = this.braincore.maxChatTextLength;
+    if (text.length > maxLength) {
+      return { ok: false, error: `text exceeds ${maxLength} characters` };
     }
     try {
       await this.braincore.sendUserMessage(sessionId, text);

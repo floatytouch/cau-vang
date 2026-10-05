@@ -13,9 +13,9 @@ import {
 } from '@noot/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../app.module.js';
+import { DEFAULT_MAX_CHAT_TEXT_LENGTH } from '../../config/app-config.js';
 import { BraincoreService } from '../braincore.service.js';
 import { MOCK_ENGINE_ID } from '../testing/mock-engine-adapter.js';
-import { MAX_CHAT_TEXT_LENGTH } from './braincore.gateway.js';
 
 const ENV_KEYS = ['NOOT_BRAINCORE_DATA_DIR', 'NOOT_BRAINCORE_MOCK_ENGINES'] as const;
 
@@ -125,7 +125,7 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     [{}, /required/],
     [{ sessionId: 42, text: 'x' }, /required/],
     [{ sessionId: 'nope', text: 'x' }, /Unknown session/],
-    [{ sessionId: 'x', text: 'y'.repeat(MAX_CHAT_TEXT_LENGTH + 1) }, /exceeds/],
+    [{ sessionId: 'x', text: 'y'.repeat(DEFAULT_MAX_CHAT_TEXT_LENGTH + 1) }, /exceeds/],
   ])('rejects a bad chat_send payload %#', async (payload, message) => {
     const ack = (await client.emit(WS_CHAT_SEND_EVENT, payload)) as { ok: boolean; error: string };
     expect(ack.ok).toBe(false);

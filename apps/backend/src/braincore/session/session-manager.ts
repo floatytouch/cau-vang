@@ -3,9 +3,9 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 import type { ConversationMessage } from '@noot/shared';
+import { DEFAULT_LIVE_SESSION_CAP } from '../../config/app-config.js';
 import { writeFileAtomic } from '../persistence/atomic-write.js';
 import {
-  DEFAULT_LIVE_SESSION_CAP,
   DEFAULT_SESSION_TITLE,
   SESSION_ID_PATTERN,
   type SessionSummary,

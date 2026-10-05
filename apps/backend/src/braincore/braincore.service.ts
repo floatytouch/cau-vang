@@ -3,10 +3,11 @@ import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type { EngineAdapter, NootEvent } from '@noot/shared';
 import {
-  resolveBraincoreDataDir,
-  resolveIdentityConfigDir,
-  resolveMockEnginesEnabled,
-} from './braincore-paths.js';
+  DEFAULT_BRAINCORE_DATA_DIR,
+  DEFAULT_IDENTITY_CONFIG_DIR,
+  DEFAULT_LIVE_SESSION_CAP,
+  DEFAULT_MAX_CHAT_TEXT_LENGTH,
+} from '../config/app-config.js';
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
 import { SessionManager } from './session/session-manager.js';
@@ -24,6 +25,8 @@ export const BRAINCORE_OPTIONS = Symbol('BRAINCORE_OPTIONS');
 export interface BraincoreServiceOptions {
   dataDir?: string;
   identityConfigDir?: string;
+  liveSessionCap?: number;
+  maxChatTextLength?: number;
   registerMocks?: boolean;
 }
 
@@ -32,26 +35,43 @@ export class BraincoreService extends EventEmitter {
   readonly sessions: SessionManager;
   readonly engines = new EngineRegistry();
   readonly tools = new ToolRegistry();
+  readonly maxChatTextLength: number;
   private readonly identityConfigDir: string;
+  private identity: IdentityBuilder | undefined;
   private systemPrompt: string | undefined;
   private readonly activeTurns = new Map<string, EngineAdapter>();
 
   constructor(@Optional() @Inject(BRAINCORE_OPTIONS) options: BraincoreServiceOptions | null) {
     super();
     const resolved = options ?? {};
-    this.sessions = new SessionManager({ dataDir: resolved.dataDir ?? resolveBraincoreDataDir() });
-    this.identityConfigDir = resolved.identityConfigDir ?? resolveIdentityConfigDir();
+    this.sessions = new SessionManager({
+      dataDir: resolved.dataDir ?? DEFAULT_BRAINCORE_DATA_DIR,
+      liveSessionCap: resolved.liveSessionCap ?? DEFAULT_LIVE_SESSION_CAP,
+    });
+    this.identityConfigDir = resolved.identityConfigDir ?? DEFAULT_IDENTITY_CONFIG_DIR;
+    this.maxChatTextLength = resolved.maxChatTextLength ?? DEFAULT_MAX_CHAT_TEXT_LENGTH;
     registerSampleTools(this.tools);
-    if (resolved.registerMocks ?? resolveMockEnginesEnabled()) {
+    if (resolved.registerMocks ?? false) {
       this.engines.register(createMockBareApiAdapter());
       this.engines.register(createMockHarnessAdapter());
     }
   }
 
   async initialize(): Promise<void> {
-    const identity = await IdentityBuilder.load(this.identityConfigDir);
-    this.systemPrompt = await identity.buildSystemPrompt();
+    this.identity = await IdentityBuilder.load(this.identityConfigDir);
+    this.systemPrompt = await this.identity.buildSystemPrompt();
     await this.sessions.initialize();
+  }
+
+  getBotName(): string {
+    return this.requireIdentity().getBotName();
+  }
+
+  async setBotName(botName: string): Promise<string> {
+    const identity = this.requireIdentity();
+    await identity.setBotName(botName);
+    this.systemPrompt = await identity.buildSystemPrompt();
+    return identity.getBotName();
   }
 
   listSessions() {
@@ -148,5 +168,12 @@ export class BraincoreService extends EventEmitter {
       throw new Error('BraincoreService.initialize() must finish before turns run');
     }
     return this.systemPrompt;
+  }
+
+  private requireIdentity(): IdentityBuilder {
+    if (this.identity === undefined) {
+      throw new Error('BraincoreService.initialize() must finish before identity access');
+    }
+    return this.identity;
   }
 }

@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { isNootEvent, type EngineAdapter, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveIdentityConfigDir } from './braincore-paths.js';
+import { DEFAULT_IDENTITY_CONFIG_DIR } from '../config/app-config.js';
 import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from './braincore.service.js';
 import type { StoredSession } from './session/session-types.js';
 import {
@@ -15,7 +15,7 @@ import {
 async function startService(dataDir: string): Promise<BraincoreService> {
   const service = new BraincoreService({
     dataDir,
-    identityConfigDir: resolveIdentityConfigDir(),
+    identityConfigDir: DEFAULT_IDENTITY_CONFIG_DIR,
     registerMocks: true,
   });
   await service.initialize();
@@ -124,6 +124,30 @@ describe('BrainCore funnel', () => {
       ['internal_note', 0],
       ['done', 1],
     ]);
+  });
+
+  it('exposes a user-settable botName that reshapes the system prompt', async () => {
+    expect(service.getBotName()).toBe('Noops');
+    const identityDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-rename-'));
+    try {
+      await writeFile(
+        path.join(identityDir, 'identity.json'),
+        JSON.stringify({
+          baseSystemPromptAnchor: 'You are Noops.',
+          botName: 'Noops',
+        }),
+      );
+      const renamed = new BraincoreService({
+        dataDir: tempDataDir,
+        identityConfigDir: identityDir,
+        registerMocks: true,
+      });
+      await renamed.initialize();
+      await expect(renamed.setBotName('Nốt')).resolves.toBe('Nốt');
+      expect(renamed.getBotName()).toBe('Nốt');
+    } finally {
+      await rm(identityDir, { recursive: true, force: true });
+    }
   });
 
   it('rejects a second concurrent turn on the same session', async () => {
