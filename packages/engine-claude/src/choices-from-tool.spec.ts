@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { choicesFromAskUserQuestionArgs } from './choices-from-tool.js';
+import { isNootEvent } from '@noot/shared';
 
-const META = {
-  sessionId: 's1',
-  turnId: 't1',
-  seq: 0,
-  emittedAt: '2026-10-05T00:00:00.000Z',
-};
+import { choicesFromAskUserQuestionArgs } from './choices-from-tool.js';
+import { EventSequence } from './event-sequence.js';
 
 describe('choicesFromAskUserQuestionArgs', () => {
   it('maps AskUserQuestion-shaped args to a choices event', () => {
-    const choices = choicesFromAskUserQuestionArgs(META, {
+    const choices = choicesFromAskUserQuestionArgs(new EventSequence('s1', 't1'), {
       questions: [
         {
           question: 'Pick one',
@@ -28,5 +24,21 @@ describe('choicesFromAskUserQuestionArgs', () => {
         { id: '1', label: 'B' },
       ],
     });
+  });
+
+  it('returns nothing and consumes no seq for args without options', () => {
+    const sequence = new EventSequence('s1', 't1');
+    expect(
+      choicesFromAskUserQuestionArgs(sequence, { questions: [{ question: 'q' }] }),
+    ).toBeUndefined();
+    expect(sequence.meta().seq).toBe(0);
+  });
+
+  it('replaces non-string labels so the event stays valid', () => {
+    const choices = choicesFromAskUserQuestionArgs(new EventSequence('s1', 't1'), {
+      questions: [{ options: [{ label: 7 }] }],
+    });
+    expect(choices && isNootEvent(choices)).toBe(true);
+    expect(choices?.options[0]?.label).toBe('Option 1');
   });
 });

@@ -1,4 +1,6 @@
-import type { ChoiceOption, ChoicesEvent, NootEventMeta } from '@noot/shared';
+import type { ChoiceOption, ChoicesEvent } from '@noot/shared';
+
+import type { EventSequence } from './event-sequence.js';
 
 interface AskUserQuestionOption {
   label?: string;
@@ -12,7 +14,7 @@ interface AskUserQuestionEntry {
 }
 
 export function choicesFromAskUserQuestionArgs(
-  meta: NootEventMeta,
+  sequence: EventSequence,
   args: unknown,
 ): ChoicesEvent | undefined {
   if (!args || typeof args !== 'object') {
@@ -32,12 +34,15 @@ export function choicesFromAskUserQuestionArgs(
 
   const mapped: ChoiceOption[] = options.map((option, index) => ({
     id: String(index),
-    label: option.label ?? `Option ${index + 1}`,
-    description: option.description,
+    label:
+      typeof option.label === 'string' && option.label.length > 0
+        ? option.label
+        : `Option ${index + 1}`,
+    description: typeof option.description === 'string' ? option.description : undefined,
   }));
 
   return {
-    ...meta,
+    ...sequence.meta(),
     type: 'choices',
     prompt: first.question ?? first.header,
     options: mapped,
