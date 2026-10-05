@@ -5,12 +5,6 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-/**
- * Lint law for NV-11. Naming and nested-ternary must fail closed.
- * Broader typescript-eslint strict rules (explicit-module-boundary-types,
- * no-floating-promises, typed no-magic-numbers) are documented in
- * docs/code-conventions/ and land once packages have type-aware lint projects.
- */
 export default defineConfig(
   { ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', '.yarn/**', '.worktrees/**'] },
   eslint.configs.recommended,
@@ -21,6 +15,7 @@ export default defineConfig(
     rules: {
       'no-nested-ternary': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/naming-convention': [
         'error',
         {
@@ -44,6 +39,7 @@ export default defineConfig(
       'apps/frontend/src/**/*.tsx',
       'apps/frontend/src/**/*.ts',
       'apps/frontend/test/**/*.tsx',
+      'apps/frontend/test/**/*.ts',
     ],
     languageOptions: { globals: globals.browser },
     extends: [reactHooks.configs.flat.recommended],
@@ -57,6 +53,7 @@ export default defineConfig(
     ],
     rules: {
       '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
     },
   },
   {

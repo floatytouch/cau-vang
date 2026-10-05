@@ -20,7 +20,12 @@ import {
 import { EngineRegistry } from './engine/engine-registry.js';
 import { IdentityBuilder } from './identity/identity-builder.js';
 import { SessionManager } from './session/session-manager.js';
-import { STORED_ROLE_INTERNAL } from './session/session-types.js';
+import {
+  STORED_ROLE_INTERNAL,
+  type SessionSummary,
+  type StoredMessage,
+  type StoredSession,
+} from './session/session-types.js';
 import {
   createMockBareApiAdapter,
   createMockHarnessAdapter,
@@ -84,24 +89,24 @@ export class BraincoreService extends EventEmitter {
     return identity.getBotName();
   }
 
-  listSessions() {
+  listSessions(): SessionSummary[] {
     return this.sessions.listSessions();
   }
 
-  async createSession(engineId: string, model: string, title?: string) {
+  async createSession(engineId: string, model: string, title?: string): Promise<StoredSession> {
     this.engines.get(engineId);
     return this.sessions.createSession(engineId, model, title);
   }
 
-  async deleteSession(sessionId: string) {
+  async deleteSession(sessionId: string): Promise<boolean> {
     return this.sessions.deleteSession(sessionId);
   }
 
-  getHistory(sessionId: string) {
+  getHistory(sessionId: string): StoredMessage[] {
     return this.sessions.getHistory(sessionId);
   }
 
-  async setEngine(sessionId: string, engineId: string, model: string) {
+  async setEngine(sessionId: string, engineId: string, model: string): Promise<StoredSession> {
     this.engines.get(engineId);
     return this.sessions.setEngine(sessionId, engineId, model);
   }
