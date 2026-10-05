@@ -42,7 +42,7 @@ describe('BrainCore funnel', () => {
   let service: BraincoreService;
 
   beforeEach(async () => {
-    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-funnel-'));
+    tempDataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-funnel-'));
     service = await startService(tempDataDir);
   });
 
@@ -137,7 +137,7 @@ describe('BrainCore funnel', () => {
 
   it('exposes a user-settable botName that reshapes the system prompt sent to the engine', async () => {
     expect(service.getBotName()).toBe('Noops');
-    const identityDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-rename-'));
+    const identityDir = await mkdtemp(path.join(os.tmpdir(), 'noot-rename-'));
     try {
       await writeFile(
         path.join(identityDir, IDENTITY_CONFIG_FILE),

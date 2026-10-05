@@ -73,7 +73,7 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
   const savedEnv = new Map<string, string | undefined>();
 
   beforeAll(async () => {
-    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-gateway-'));
+    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-gateway-'));
     for (const key of ENV_KEYS) {
       savedEnv.set(key, process.env[key]);
     }

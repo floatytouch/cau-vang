@@ -18,7 +18,7 @@ describe('IdentityBuilder', () => {
   let configDir: string;
 
   beforeEach(async () => {
-    configDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-identity-'));
+    configDir = await mkdtemp(path.join(os.tmpdir(), 'noot-identity-'));
   });
 
   afterEach(async () => {

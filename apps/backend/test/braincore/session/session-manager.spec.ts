@@ -26,7 +26,7 @@ describe('SessionManager', () => {
   let manager: SessionManager;
 
   beforeEach(async () => {
-    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-sessions-'));
+    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-sessions-'));
     conversationsDir = path.join(dataDir, 'conversations');
     manager = new SessionManager({ dataDir });
     await manager.initialize();

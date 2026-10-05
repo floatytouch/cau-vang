@@ -25,15 +25,15 @@ describe('loadAppConfig', () => {
   it('reads ops-tunables from the environment', () => {
     const config = loadAppConfig({
       PORT: '4100',
-      NOOT_BRAINCORE_DATA_DIR: '/tmp/noot-NV-3-data',
-      NOOT_IDENTITY_CONFIG_DIR: '/tmp/noot-NV-3-identity',
+      NOOT_BRAINCORE_DATA_DIR: '/tmp/noot-data',
+      NOOT_IDENTITY_CONFIG_DIR: '/tmp/noot-identity',
       NOOT_BRAINCORE_LIVE_SESSION_CAP: '7',
       NOOT_BRAINCORE_MAX_CHAT_TEXT_LENGTH: '500',
       NOOT_BRAINCORE_MOCK_ENGINES: '1',
     });
     expect(config.port).toBe(4100);
-    expect(config.braincore.dataDir).toBe(path.resolve('/tmp/noot-NV-3-data'));
-    expect(config.braincore.identityConfigDir).toBe(path.resolve('/tmp/noot-NV-3-identity'));
+    expect(config.braincore.dataDir).toBe(path.resolve('/tmp/noot-data'));
+    expect(config.braincore.identityConfigDir).toBe(path.resolve('/tmp/noot-identity'));
     expect(config.braincore.liveSessionCap).toBe(7);
     expect(config.braincore.maxChatTextLength).toBe(500);
     expect(config.braincore.mockEngines).toBe(true);
