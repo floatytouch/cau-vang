@@ -10,21 +10,27 @@ describe('SdkMessageMapper', () => {
     const messages: SDKMessage[] = [
       {
         type: 'stream_event',
-        event: { type: 'content_block_delta', delta: { type: 'thinking_delta', text: 'Hmm' } },
+        event: {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'thinking_delta', text: 'Hmm' },
+        },
         parent_tool_use_id: null,
         uuid: 'u1',
         session_id: 'claude-s1',
-      } as SDKMessage,
+      } as unknown as SDKMessage,
       {
         type: 'stream_event',
-        event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hi' } },
+        event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hi' } },
         parent_tool_use_id: null,
         uuid: 'u2',
         session_id: 'claude-s1',
-      } as SDKMessage,
+      } as unknown as SDKMessage,
     ];
 
-    const types = messages.flatMap((message) => mapper.mapMessage(message).map((event) => event.type));
+    const types = messages.flatMap((message) =>
+      mapper.mapMessage(message).map((event) => event.type),
+    );
     expect(types).toEqual(['thinking_delta', 'text_delta']);
   });
 });

@@ -1,18 +1,9 @@
 import type { Query } from '@anthropic-ai/claude-agent-sdk';
-import type {
-  EngineAdapter,
-  EngineSession,
-  NootEvent,
-  TurnInput,
-  TurnOptions,
-} from '@noot/shared';
+import type { EngineAdapter, EngineSession, NootEvent, TurnInput, TurnOptions } from '@noot/shared';
 
 import type { ClaudeQueryFactory } from './claude-query-factory.js';
 import { defaultClaudeQueryFactory } from './claude-query-factory.js';
-import {
-  CLAUDE_ENGINE_CAPABILITIES,
-  CLAUDE_ENGINE_ID,
-} from './constants.js';
+import { CLAUDE_ENGINE_CAPABILITIES, CLAUDE_ENGINE_ID } from './constants.js';
 import { EventSequence } from './event-sequence.js';
 import { oauthSubprocessEnv } from './oauth-subprocess-env.js';
 import { SdkMessageMapper } from './sdk-message-mapper.js';

@@ -79,14 +79,19 @@ export class SdkMessageMapper {
 
     const eventType = (event as { type?: string }).type;
     if (eventType === 'content_block_delta') {
-      const delta = (event as { delta?: { type?: string; text?: string; partial_json?: string } }).delta;
+      const delta = (event as { delta?: { type?: string; text?: string; partial_json?: string } })
+        .delta;
       if (!delta) {
         return [];
       }
       if (delta.type === 'text_delta' && typeof delta.text === 'string' && delta.text.length > 0) {
         return [{ ...this.sequence.meta(), type: 'text_delta', text: delta.text }];
       }
-      if (delta.type === 'thinking_delta' && typeof delta.text === 'string' && delta.text.length > 0) {
+      if (
+        delta.type === 'thinking_delta' &&
+        typeof delta.text === 'string' &&
+        delta.text.length > 0
+      ) {
         return [{ ...this.sequence.meta(), type: 'thinking_delta', text: delta.text }];
       }
       if (delta.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
@@ -115,8 +120,9 @@ export class SdkMessageMapper {
 
     if (eventType === 'content_block_start') {
       const index = (event as { index?: number }).index;
-      const contentBlock = (event as { content_block?: { type?: string; id?: string; name?: string } })
-        .content_block;
+      const contentBlock = (
+        event as { content_block?: { type?: string; id?: string; name?: string } }
+      ).content_block;
       if (typeof index !== 'number' || !contentBlock || contentBlock.type !== 'tool_use') {
         return [];
       }
@@ -264,9 +270,7 @@ export class SdkMessageMapper {
     const events: NootEvent[] = [];
 
     if (message.subtype !== 'success') {
-      const errorText =
-        message.errors?.join('; ') ||
-        (typeof message.result === 'string' ? message.result : 'Claude turn failed');
+      const errorText = message.errors?.join('; ') || `Claude turn failed (${message.subtype})`;
       events.push({
         ...this.sequence.meta(),
         type: 'error',
@@ -277,7 +281,11 @@ export class SdkMessageMapper {
       return events;
     }
 
-    const usage = pickUsage(this.sequence, message, this.engineModel);
+    const usage = pickUsage(
+      this.sequence,
+      message as SDKMessage & { type: 'result'; subtype: 'success' },
+      this.engineModel,
+    );
     if (usage) {
       events.push(usage);
     }
@@ -326,11 +334,13 @@ function pickUsage(
   }
 
   const inputTokens = numberField(entry, 'inputTokens') ?? numberField(entry, 'input_tokens') ?? 0;
-  const outputTokens = numberField(entry, 'outputTokens') ?? numberField(entry, 'output_tokens') ?? 0;
+  const outputTokens =
+    numberField(entry, 'outputTokens') ?? numberField(entry, 'output_tokens') ?? 0;
   const cacheReadTokens =
     numberField(entry, 'cacheReadInputTokens') ?? numberField(entry, 'cache_read_input_tokens');
   const cacheWriteTokens =
-    numberField(entry, 'cacheCreationInputTokens') ?? numberField(entry, 'cache_write_input_tokens');
+    numberField(entry, 'cacheCreationInputTokens') ??
+    numberField(entry, 'cache_write_input_tokens');
   const costUsd = numberField(entry, 'costUSD') ?? numberField(entry, 'cost_usd');
 
   return {

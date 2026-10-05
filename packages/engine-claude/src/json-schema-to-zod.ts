@@ -12,7 +12,7 @@ export function jsonSchemaToZodShape(schema: Readonly<Record<string, unknown>>):
       : [],
   );
 
-  const shape: z.ZodRawShape = {};
+  const shape: Record<string, z.ZodType> = {};
   for (const [key, propertySchema] of Object.entries(properties as Record<string, unknown>)) {
     let field: z.ZodType = z.unknown();
     if (propertySchema && typeof propertySchema === 'object' && !Array.isArray(propertySchema)) {
@@ -32,5 +32,5 @@ export function jsonSchemaToZodShape(schema: Readonly<Record<string, unknown>>):
     shape[key] = required.has(key) ? field : field.optional();
   }
 
-  return shape;
+  return shape as z.ZodRawShape;
 }

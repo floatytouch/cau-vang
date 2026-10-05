@@ -23,14 +23,17 @@ async function collect(stream: AsyncIterable<NootEvent>): Promise<NootEvent[]> {
   return events;
 }
 
-function mockQueryFactory(messages: SDKMessage[], hooks?: { onQuery?: (args: unknown) => void }): {
+function mockQueryFactory(
+  messages: SDKMessage[],
+  hooks?: { onQuery?: (args: unknown) => void },
+): {
   factory: ClaudeQueryFactory;
   interrupt: ReturnType<typeof vi.fn>;
 } {
   const interrupt = vi.fn(async () => undefined);
   const factory: ClaudeQueryFactory = (params) => {
     hooks?.onQuery?.(params);
-    const iterator: Query = {
+    const iterator = {
       async next() {
         const value = messages.shift();
         if (!value) {
@@ -41,14 +44,14 @@ function mockQueryFactory(messages: SDKMessage[], hooks?: { onQuery?: (args: unk
       async return() {
         return { done: true, value: undefined };
       },
-      async throw(error) {
+      async throw(error: unknown) {
         throw error;
       },
       [Symbol.asyncIterator]() {
         return this;
       },
       interrupt,
-    };
+    } as unknown as Query;
     return iterator;
   };
   return { factory, interrupt };
@@ -75,7 +78,7 @@ describe('ClaudeEngineAdapter', () => {
           errors: [],
           uuid: 'r1',
           session_id: 'claude-uuid',
-        } as SDKMessage,
+        } as unknown as SDKMessage,
       ],
       {
         onQuery: (params) => {
@@ -118,7 +121,7 @@ describe('ClaudeEngineAdapter', () => {
           errors: [],
           uuid: 'r1',
           session_id: 'claude-uuid-resume',
-        } as SDKMessage,
+        } as unknown as SDKMessage,
       ],
       {
         onQuery: (params) => {
@@ -144,11 +147,15 @@ describe('ClaudeEngineAdapter', () => {
       const pending: SDKMessage[] = [
         {
           type: 'stream_event',
-          event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'partial' } },
+          event: {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: 'partial' },
+          },
           parent_tool_use_id: null,
           uuid: 'u1',
           session_id: 'claude-s1',
-        } as SDKMessage,
+        } as unknown as SDKMessage,
       ];
       return {
         async next() {
@@ -177,7 +184,7 @@ describe('ClaudeEngineAdapter', () => {
           return this;
         },
         interrupt,
-      };
+      } as unknown as Query;
     };
 
     const adapter = new ClaudeEngineAdapter({ queryFactory: factory });
