@@ -2,9 +2,11 @@
 
 Grounded in typescript-eslint strict guidance (`explicit-module-boundary-types`, `no-explicit-any`, `no-floating-promises`).
 
+Lint enforces the first two. `no-floating-promises` needs type-aware lint, which this repo does not run, so floating promises and everything under Errors are caught in review.
+
 ## Types
 
-- Exported functions and methods declare explicit return types.
+- Exported functions and public methods of exported classes declare explicit return types (React components included: `ReactElement`).
 - `any` is forbidden. Prefer `unknown` at boundaries, then narrow.
 - Do not leave floating promises; `void` them only when fire-and-forget is intentional and safe.
 
