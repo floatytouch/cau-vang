@@ -6,9 +6,11 @@ import {
   BraincoreService,
   type BraincoreServiceOptions,
 } from './braincore.service.js';
+import { UsageController } from './usage/usage.controller.js';
 import { BraincoreGateway } from './ws/braincore.gateway.js';
 
 @Module({
+  controllers: [UsageController],
   providers: [
     {
       provide: BRAINCORE_OPTIONS,

@@ -6,6 +6,7 @@ import {
   NOOT_EVENT_TYPE_TEXT_DELTA,
   NOOT_EVENT_TYPE_THINKING_DELTA,
   NOOT_EVENT_TYPE_TOOL_CALL,
+  NOOT_EVENT_TYPE_USAGE,
   TOOL_CALL_PHASE_START,
   TOOL_CALL_STATUS_RUNNING,
 } from '@noot/shared';
@@ -24,6 +25,10 @@ export const MOCK_ENGINE_ID = 'mock';
 
 /** Typed text containing this makes the bare-API mock request the echo_message tool. */
 export const MOCK_USE_ECHO_TOOL_MARKER = 'USE_ECHO_TOOL';
+
+export const MOCK_USAGE_INPUT_TOKENS = 10;
+export const MOCK_USAGE_OUTPUT_TOKENS = 5;
+export const MOCK_USAGE_COST_USD = 0.001;
 
 export const MOCK_ENGINE_CAPABILITIES: EngineCapabilities = {
   toolLoop: ENGINE_TOOL_LOOP_BARE_API,
@@ -50,6 +55,18 @@ function meta(session: EngineSession, options: TurnOptions, seq: number) {
   };
 }
 
+function usageEvent(session: EngineSession, options: TurnOptions, seq: number, engine: string) {
+  return {
+    ...meta(session, options, seq),
+    type: NOOT_EVENT_TYPE_USAGE,
+    engine,
+    model: options.model,
+    inputTokens: MOCK_USAGE_INPUT_TOKENS,
+    outputTokens: MOCK_USAGE_OUTPUT_TOKENS,
+    costUsd: MOCK_USAGE_COST_USD,
+  } satisfies NootEvent;
+}
+
 export function createMockBareApiAdapter(): EngineAdapter {
   return {
     id: MOCK_ENGINE_ID,
@@ -62,8 +79,9 @@ export function createMockBareApiAdapter(): EngineAdapter {
           type: NOOT_EVENT_TYPE_TEXT_DELTA,
           text: `tool loop finished: ${payload}`,
         } satisfies NootEvent;
+        yield usageEvent(session, options, 1, MOCK_ENGINE_ID);
         yield {
-          ...meta(session, options, 1),
+          ...meta(session, options, 2),
           type: NOOT_EVENT_TYPE_DONE,
           reason: DONE_REASON_COMPLETED,
         } satisfies NootEvent;
@@ -99,8 +117,9 @@ export function createMockBareApiAdapter(): EngineAdapter {
         type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: input.text,
       } satisfies NootEvent;
+      yield usageEvent(session, options, 1, MOCK_ENGINE_ID);
       yield {
-        ...meta(session, options, 1),
+        ...meta(session, options, 2),
         type: NOOT_EVENT_TYPE_DONE,
         reason: DONE_REASON_COMPLETED,
       } satisfies NootEvent;
@@ -119,8 +138,9 @@ export function createMockHarnessAdapter(): EngineAdapter {
         type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: `harness:${input.text}`,
       } satisfies NootEvent;
+      yield usageEvent(session, options, 1, MOCK_HARNESS_ENGINE_ID);
       yield {
-        ...meta(session, options, 1),
+        ...meta(session, options, 2),
         type: NOOT_EVENT_TYPE_DONE,
         reason: DONE_REASON_COMPLETED,
       } satisfies NootEvent;
