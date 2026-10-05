@@ -1,7 +1,6 @@
 import { isNootEvent } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
 import { createCursorEngineAdapter } from './cursor-engine-adapter.js';
-import { resolveCursorApiKey } from './resolve-api-key.js';
 
 const smokeEnabled = process.env.NOOT_CURSOR_SMOKE === '1';
 
@@ -15,10 +14,10 @@ async function collect(stream: AsyncIterable<unknown>): Promise<unknown[]> {
 
 describe.skipIf(!smokeEnabled)('cursor composer smoke', () => {
   it('maps a real composer turn to thinking, text, and terminal done', async () => {
-    const apiKey = resolveCursorApiKey();
+    // No apiKey: relies on SDK stored login. Hosts that use CURSOR_API_KEY must
+    // pass it via createCursorEngineAdapter({ apiKey }) from Nest ConfigService.
     const adapter = createCursorEngineAdapter({
       cwd: process.cwd(),
-      ...(apiKey !== undefined ? { apiKey } : {}),
       turnTimeoutMs: 120_000,
     });
 

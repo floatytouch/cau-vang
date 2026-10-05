@@ -40,6 +40,10 @@ import { TurnEventBuilder } from './turn-event-builder.js';
 export interface CursorEngineAdapterConfig {
   /** Working directory for the local Cursor agent (brief / project root). */
   cwd: string;
+  /**
+   * Optional Cursor API key from the host config layer (e.g. Nest ConfigService).
+   * Omit to use @cursor/sdk stored login. Never read from process.env here.
+   */
   apiKey?: string;
   turnTimeoutMs?: number;
 }

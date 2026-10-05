@@ -6,8 +6,7 @@ describe('resolveCursorApiKey', () => {
     vi.unstubAllEnvs();
   });
 
-  it('prefers an explicit key over CURSOR_API_KEY', () => {
-    vi.stubEnv('CURSOR_API_KEY', 'env_key');
+  it('returns a non-empty explicit key', () => {
     expect(resolveCursorApiKey('explicit_key')).toBe('explicit_key');
   });
 
@@ -15,13 +14,13 @@ describe('resolveCursorApiKey', () => {
     expect(() => resolveCursorApiKey('')).toThrow(/empty string/);
   });
 
-  it('falls back to CURSOR_API_KEY', () => {
-    vi.stubEnv('CURSOR_API_KEY', 'env_key');
-    expect(resolveCursorApiKey()).toBe('env_key');
+  it('returns undefined when no key is provided so the SDK can use stored login', () => {
+    expect(resolveCursorApiKey()).toBeUndefined();
   });
 
-  it('returns undefined for the stored-login path when nothing is configured', () => {
-    vi.stubEnv('CURSOR_API_KEY', '');
+  it('ignores CURSOR_API_KEY in the environment (host config must pass apiKey)', () => {
+    vi.stubEnv('CURSOR_API_KEY', 'env_key');
     expect(resolveCursorApiKey()).toBeUndefined();
+    expect(resolveCursorApiKey('explicit_key')).toBe('explicit_key');
   });
 });
