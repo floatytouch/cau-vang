@@ -1,13 +1,10 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import type { NootEvent } from '@noot/shared';
+import { WS_NOOT_EVENT, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../../src/config/app-config.js';
-import {
-  BraincoreService,
-  BRAINCORE_EVENT_CHANNEL,
-} from '../../../src/braincore/braincore.service.js';
+import { BraincoreService } from '../../../src/braincore/braincore.service.js';
 import { WORK_MODE_AUTO, WORK_MODE_PLAN } from '../../../src/braincore/mode/work-mode.js';
 import {
   MOCK_ENGINE_ID,
@@ -28,7 +25,7 @@ async function startService(dataDir: string): Promise<BraincoreService> {
 
 function collectEvents(service: BraincoreService): NootEvent[] {
   const collected: NootEvent[] = [];
-  service.on(BRAINCORE_EVENT_CHANNEL, (event: NootEvent) => collected.push(event));
+  service.on(WS_NOOT_EVENT, (event: NootEvent) => collected.push(event));
   return collected;
 }
 

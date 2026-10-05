@@ -7,6 +7,7 @@ import {
   NOOT_EVENT_TYPE_INTERNAL_NOTE,
   NOOT_EVENT_TYPE_TEXT_DELTA,
   NOOT_EVENT_TYPE_USAGE,
+  WS_NOOT_EVENT,
 } from '@noot/shared';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
@@ -42,8 +43,6 @@ import {
 import { registerSampleTools, ToolRegistry } from './tools/tool-registry.js';
 import { runConversationTurn } from './turn/turn-runner.js';
 import { TurnUsageAccumulator, UsageRecorder } from './usage/usage-recorder.js';
-
-export const BRAINCORE_EVENT_CHANNEL = 'noot_event';
 
 export const BRAINCORE_OPTIONS = Symbol('BRAINCORE_OPTIONS');
 
@@ -270,7 +269,7 @@ export class BraincoreService extends EventEmitter {
   }
 
   private emitEvent(event: NootEvent): void {
-    this.emit(BRAINCORE_EVENT_CHANNEL, event);
+    this.emit(WS_NOOT_EVENT, event);
   }
 
   private requireSystemPrompt(): string {
