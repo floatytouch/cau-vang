@@ -8,11 +8,11 @@ for Noot-v2. Bills to the Cursor plan that owns the local login or API key.
 All runtime settings enter through `createCursorEngineAdapter(config)` -- this
 package never reads `process.env`.
 
-| Option | Required | Source (host responsibility) |
-| --- | --- | --- |
-| `cwd` | yes | Session brief / project root from BrainCore |
-| `apiKey` | no | Nest `ConfigService` (e.g. `CURSOR_API_KEY`) or omit for SDK stored login via `Cursor.auth.login()` |
-| `turnTimeoutMs` | no | Nest config; defaults to 30 minutes inside the package |
+| Option          | Required | Source (host responsibility)                                                                        |
+| --------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `cwd`           | yes      | Session brief / project root from BrainCore                                                         |
+| `apiKey`        | no       | Nest `ConfigService` (e.g. `CURSOR_API_KEY`) or omit for SDK stored login via `Cursor.auth.login()` |
+| `turnTimeoutMs` | no       | Nest config; defaults to 30 minutes inside the package                                              |
 
 ```ts
 import { createCursorEngineAdapter } from '@noot/engine-cursor';
