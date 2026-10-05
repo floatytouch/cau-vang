@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.node.json && vite build",
     "dev": "vite",
     "preview": "vite preview",
-    "test": "tsc -p tsconfig.json && vitest run"
+    "test": "tsc -p tsconfig.json && tsc -p tsconfig.test.json && vitest run"
   },
   "dependencies": {
     "@noot/shared": "workspace:*",

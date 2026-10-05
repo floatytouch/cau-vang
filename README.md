@@ -30,6 +30,25 @@ yarn test    # typecheck + Vitest per workspace
 yarn dev     # shared watch + backend on :3000 + Vite dev server (proxies /health)
 ```
 
+## Run dev
+
+```sh
+cp .env.example .env
+yarn install
+yarn dev
+```
+
+Copy `.env.example` to `.env` at the repo root (optionally add `.env.development`).
+Nest `ConfigModule` and Vite load those files only when the environment name is
+`development` (case-insensitive): Nest uses `NODE_ENV`, Vite uses its `mode`.
+`yarn dev` sets `NODE_ENV=development` for the API; `vite` uses mode
+`development`. Unset `NODE_ENV` (a bare `node dist/main.js`), `yarn start`
+(`NODE_ENV=production`), staging, test, and every other value skip env files.
+Process environment variables always override file values. Inject production
+and staging variables in the process, never via `.env`. Scripts that prefix a
+command with `NODE_ENV=...` are POSIX-only (macOS, Linux, WSL); they are not
+valid in Windows `cmd.exe`.
+
 Backend port: `PORT` (default 3000). The Vite dev proxy targets `BACKEND_URL`
 (default `http://localhost:3000`).
 
@@ -41,7 +60,5 @@ Set `NOOT_BRAINCORE_MOCK_ENGINES=1` to register the mock engines for local dev.
 WebSocket connects to BrainCore must present `NOOT_WS_TOKEN` in the Socket.IO
 handshake `auth.token` (a token in the URL query is ignored, so it never lands in
 proxy or access logs). Boot fails closed without that token unless mock engines are
-enabled. The backend reads the process environment only (no `.env` loading); the
-Vite client reads the same secret from `VITE_NOOT_WS_TOKEN` (shell or
-`apps/frontend/.env.local`) via `apps/frontend/src/realtime/wsAuth.ts`. See
+enabled. The Vite client reads the same secret from `VITE_NOOT_WS_TOKEN`. See
 `.env.example`.
