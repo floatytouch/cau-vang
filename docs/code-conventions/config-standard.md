@@ -12,12 +12,13 @@ All ops-tunable runtime values flow through the framework config layer.
 
 ## Env files (development only)
 
-`ConfigModule.forRoot` loads repo-root `.env` and `.env.development` when
-`NODE_ENV` is not `production` (`envFilePath`; dotenv is the loading layer bundled
-by `@nestjs/config`). Feature code still reads `ConfigService` only. Existing
-process environment variables override file values (`override: false`). Production
-sets `ignoreEnvFile` and must not read any `.env` file. Vite loads `VITE_*` from
-the same repo-root files in non-production modes.
+`ConfigModule.forRoot` loads repo-root `.env` and `.env.development` only when
+`NODE_ENV` is `development` (case-insensitive; dotenv is the loading layer
+bundled by `@nestjs/config`). Unset `NODE_ENV`, `production`, `staging`, and any
+other value set `ignoreEnvFile`. Feature code still reads `ConfigService` only.
+Existing process environment variables override file values (`override: false`).
+Vite uses the same rule on its `mode`: `envDir` is the repo root in development
+and `false` otherwise, so production and staging builds never read env files.
 
 ## What counts as ops-tunable
 

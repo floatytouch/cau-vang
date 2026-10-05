@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json && concurrently --kill-others --names tsc,node \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --watch-path=dist --enable-source-maps dist/main.js\"",
-    "start": "node --enable-source-maps dist/main.js",
+    "dev": "tsc -p tsconfig.build.json && concurrently --kill-others --names tsc,node \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"NODE_ENV=development node --watch-path=dist --enable-source-maps dist/main.js\"",
+    "start": "NODE_ENV=production node --enable-source-maps dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.json && vitest run"
   },

@@ -1,23 +1,70 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { NODE_ENV_DEVELOPMENT, NODE_ENV_PRODUCTION, NODE_ENV_STAGING } from '@noot/shared';
+import { afterEach, describe, expect, it } from 'vitest';
+import { loadEnv } from 'vite';
 import {
+  createFrontendViteConfig,
+  FRONTEND_REPO_ROOT,
   resolveViteBackendUrl,
   resolveViteEnvDir,
-  VITE_MODE_PRODUCTION,
-  VITE_PRODUCTION_SKIP_ENV_SEGMENTS,
-} from '../../src/config/vite-env-dir.js';
+} from '../../config/vite-env-dir.js';
+
+const VITE_CANARY_TOKEN = 'LEAKCANARY_VITE_TOKEN';
+const VITE_CANARY_KEY = 'VITE_NOOT_WS_TOKEN';
 
 describe('resolveViteEnvDir', () => {
   const repoRoot = '/tmp/noot-frontend-root';
 
-  it('loads repo-root env files in non-production modes', () => {
-    expect(resolveViteEnvDir('development', repoRoot)).toBe(repoRoot);
-    expect(resolveViteEnvDir('test', repoRoot)).toBe(repoRoot);
+  it('loads repo-root env files only in development mode', () => {
+    expect(resolveViteEnvDir(NODE_ENV_DEVELOPMENT, repoRoot)).toBe(repoRoot);
+    expect(resolveViteEnvDir('Development', repoRoot)).toBe(repoRoot);
   });
 
-  it('does not point at the repo-root .env directory in production', () => {
-    const productionDir = resolveViteEnvDir(VITE_MODE_PRODUCTION, repoRoot);
-    expect(productionDir).not.toBe(repoRoot);
-    expect(productionDir).toBe(`${repoRoot}/${VITE_PRODUCTION_SKIP_ENV_SEGMENTS.join('/')}`);
+  it('disables env files for production, staging, test, and empty mode', () => {
+    expect(resolveViteEnvDir(NODE_ENV_PRODUCTION, repoRoot)).toBe(false);
+    expect(resolveViteEnvDir('Production', repoRoot)).toBe(false);
+    expect(resolveViteEnvDir(NODE_ENV_STAGING, repoRoot)).toBe(false);
+    expect(resolveViteEnvDir('test', repoRoot)).toBe(false);
+    expect(resolveViteEnvDir('', repoRoot)).toBe(false);
+  });
+});
+
+describe('Vite envDir used by the config factory', () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of tempDirs) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+    tempDirs.length = 0;
+  });
+
+  it('does not surface a planted VITE_ token outside development', () => {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'noot-vite-env-'));
+    tempDirs.push(repoRoot);
+    fs.writeFileSync(path.join(repoRoot, '.env'), `${VITE_CANARY_KEY}=${VITE_CANARY_TOKEN}\n`);
+
+    const blockedModes = [NODE_ENV_PRODUCTION, NODE_ENV_STAGING, 'test', 'Production', ''];
+    for (const mode of blockedModes) {
+      const envDir = resolveViteEnvDir(mode, repoRoot);
+      const loaded = loadEnv(mode, envDir, '');
+      expect(envDir).toBe(false);
+      expect(loaded[VITE_CANARY_KEY]).not.toBe(VITE_CANARY_TOKEN);
+    }
+
+    const developmentDir = resolveViteEnvDir(NODE_ENV_DEVELOPMENT, repoRoot);
+    expect(developmentDir).toBe(repoRoot);
+    expect(loadEnv(NODE_ENV_DEVELOPMENT, developmentDir, '')[VITE_CANARY_KEY]).toBe(
+      VITE_CANARY_TOKEN,
+    );
+  });
+
+  it('pins the exported Vite config to skip env files in production and staging', () => {
+    expect(createFrontendViteConfig(NODE_ENV_PRODUCTION).envDir).toBe(false);
+    expect(createFrontendViteConfig(NODE_ENV_STAGING).envDir).toBe(false);
+    expect(createFrontendViteConfig(NODE_ENV_DEVELOPMENT).envDir).toBe(FRONTEND_REPO_ROOT);
   });
 });
 

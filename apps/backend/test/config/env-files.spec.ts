@@ -4,14 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import { DEFAULT_BACKEND_PORT } from '@noot/shared';
+import {
+  DEFAULT_BACKEND_PORT,
+  NODE_ENV_DEVELOPMENT,
+  NODE_ENV_PRODUCTION,
+  NODE_ENV_STAGING,
+} from '@noot/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../../src/config/app-config.js';
 import {
   createConfigModuleOptions,
   ENV_FILE_DEFAULT,
   ENV_FILE_DEVELOPMENT,
-  NODE_ENV_PRODUCTION,
   resolveEnvFilePaths,
   shouldIgnoreEnvFile,
 } from '../../src/config/env-files.js';
@@ -19,14 +23,16 @@ import {
 const MANAGED_ENV_KEYS = ['PORT', 'NOOT_WS_TOKEN', 'NOOT_BRAINCORE_MOCK_ENGINES'] as const;
 
 describe('env file loading policy', () => {
-  it('ignores env files only in production', () => {
+  it('ignores env files unless NODE_ENV is development', () => {
+    expect(shouldIgnoreEnvFile(NODE_ENV_DEVELOPMENT)).toBe(false);
+    expect(shouldIgnoreEnvFile('Development')).toBe(false);
     expect(shouldIgnoreEnvFile(NODE_ENV_PRODUCTION)).toBe(true);
-    expect(shouldIgnoreEnvFile('development')).toBe(false);
-    expect(shouldIgnoreEnvFile('test')).toBe(false);
-    expect(shouldIgnoreEnvFile(undefined)).toBe(false);
+    expect(shouldIgnoreEnvFile(NODE_ENV_STAGING)).toBe(true);
+    expect(shouldIgnoreEnvFile('test')).toBe(true);
+    expect(shouldIgnoreEnvFile(undefined)).toBe(true);
   });
 
-  it('prefers .env.development over .env when both exist', () => {
+  it('lists the development env file before the default env file', () => {
     const repoRoot = '/tmp/noot-repo-root';
     expect(resolveEnvFilePaths(repoRoot)).toEqual([
       path.join(repoRoot, ENV_FILE_DEVELOPMENT),
@@ -39,7 +45,13 @@ describe('env file loading policy', () => {
     expect(production.ignoreEnvFile).toBe(true);
     expect(production.override).toBe(false);
 
-    const development = createConfigModuleOptions('development', '/tmp/a');
+    const unset = createConfigModuleOptions(undefined, '/tmp/a');
+    expect(unset.ignoreEnvFile).toBe(true);
+
+    const staging = createConfigModuleOptions(NODE_ENV_STAGING, '/tmp/a');
+    expect(staging.ignoreEnvFile).toBe(true);
+
+    const development = createConfigModuleOptions(NODE_ENV_DEVELOPMENT, '/tmp/a');
     expect(development.ignoreEnvFile).toBe(false);
     expect(development.override).toBe(false);
   });
@@ -68,7 +80,7 @@ describe('ConfigModule envFilePath loading', () => {
     rememberKeys(snapshots, MANAGED_ENV_KEYS);
     deleteManaged(MANAGED_ENV_KEYS);
 
-    const config = await bootAppConfig(repoRoot, 'development');
+    const config = await bootAppConfig(repoRoot, NODE_ENV_DEVELOPMENT);
     expect(config.port).toBe(4121);
     expect(config.wsToken).toBe('file-token');
     expect(config.braincore.mockEngines).toBe(true);
@@ -87,7 +99,7 @@ describe('ConfigModule envFilePath loading', () => {
     process.env.NOOT_WS_TOKEN = 'process-token';
     process.env.NOOT_BRAINCORE_MOCK_ENGINES = '0';
 
-    const config = await bootAppConfig(repoRoot, 'development');
+    const config = await bootAppConfig(repoRoot, NODE_ENV_DEVELOPMENT);
     expect(config.port).toBe(4333);
     expect(config.wsToken).toBe('process-token');
     expect(config.braincore.mockEngines).toBe(false);
@@ -109,13 +121,45 @@ describe('ConfigModule envFilePath loading', () => {
     expect(config.wsToken).toBeUndefined();
   });
 
+  it('does not read env files when NODE_ENV is unset', async () => {
+    const repoRoot = makeRepoRoot(tempDirs);
+    writeEnv(repoRoot, ENV_FILE_DEFAULT, [
+      'PORT=4121',
+      'NOOT_BRAINCORE_MOCK_ENGINES=1',
+      'NOOT_WS_TOKEN=file-token',
+    ]);
+    rememberKeys(snapshots, MANAGED_ENV_KEYS);
+    deleteManaged(MANAGED_ENV_KEYS);
+    process.env.NOOT_BRAINCORE_MOCK_ENGINES = '1';
+
+    const config = await bootAppConfig(repoRoot, undefined);
+    expect(config.port).toBe(DEFAULT_BACKEND_PORT);
+    expect(config.wsToken).toBeUndefined();
+  });
+
+  it('does not read env files in staging', async () => {
+    const repoRoot = makeRepoRoot(tempDirs);
+    writeEnv(repoRoot, ENV_FILE_DEFAULT, [
+      'PORT=4121',
+      'NOOT_BRAINCORE_MOCK_ENGINES=1',
+      'NOOT_WS_TOKEN=file-token',
+    ]);
+    rememberKeys(snapshots, MANAGED_ENV_KEYS);
+    deleteManaged(MANAGED_ENV_KEYS);
+    process.env.NOOT_BRAINCORE_MOCK_ENGINES = '1';
+
+    const config = await bootAppConfig(repoRoot, NODE_ENV_STAGING);
+    expect(config.port).toBe(DEFAULT_BACKEND_PORT);
+    expect(config.wsToken).toBeUndefined();
+  });
+
   it('does not crash when env files are missing and process env is complete', async () => {
     const repoRoot = makeRepoRoot(tempDirs);
     rememberKeys(snapshots, MANAGED_ENV_KEYS);
     deleteManaged(MANAGED_ENV_KEYS);
     process.env.NOOT_BRAINCORE_MOCK_ENGINES = '1';
 
-    const config = await bootAppConfig(repoRoot, 'development');
+    const config = await bootAppConfig(repoRoot, NODE_ENV_DEVELOPMENT);
     expect(config.port).toBe(DEFAULT_BACKEND_PORT);
     expect(config.braincore.mockEngines).toBe(true);
   });
@@ -127,12 +171,12 @@ describe('ConfigModule envFilePath loading', () => {
     rememberKeys(snapshots, MANAGED_ENV_KEYS);
     deleteManaged(MANAGED_ENV_KEYS);
 
-    const config = await bootAppConfig(repoRoot, 'development');
+    const config = await bootAppConfig(repoRoot, NODE_ENV_DEVELOPMENT);
     expect(config.port).toBe(4242);
   });
 });
 
-async function bootAppConfig(repoRoot: string, nodeEnv: string): Promise<AppConfig> {
+async function bootAppConfig(repoRoot: string, nodeEnv: string | undefined): Promise<AppConfig> {
   const moduleRef = await Test.createTestingModule({
     imports: [ConfigModule.forRoot(createConfigModuleOptions(nodeEnv, repoRoot))],
   }).compile();

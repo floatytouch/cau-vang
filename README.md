@@ -39,9 +39,13 @@ yarn dev
 ```
 
 Copy `.env.example` to `.env` at the repo root (optionally add `.env.development`).
-When `NODE_ENV` is not `production`, Nest `ConfigModule` loads those files via
-`envFilePath`; Vite reads `VITE_*` from the same directory. Process environment
-variables always override file values. Production does not load any `.env` file.
+Nest `ConfigModule` and Vite load those files only when the environment name is
+`development` (case-insensitive): Nest uses `NODE_ENV`, Vite uses its `mode`.
+`yarn dev` sets `NODE_ENV=development` for the API; `vite` uses mode
+`development`. Unset `NODE_ENV` (a bare `node dist/main.js`), `yarn start`
+(`NODE_ENV=production`), staging, test, and every other value skip env files.
+Process environment variables always override file values. Inject production
+and staging variables in the process, never via `.env`.
 
 Backend port: `PORT` (default 3000). The Vite dev proxy targets `BACKEND_URL`
 (default `http://localhost:3000`).

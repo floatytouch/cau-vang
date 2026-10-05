@@ -24,7 +24,7 @@ export interface AppConfig {
   braincore: BraincoreRuntimeConfig;
 }
 
-/** Sole place that reads process.env for Nest boot; feature code uses ConfigService. */
+/** Nested load() after env-files.ts; feature code still uses ConfigService. */
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const mockEngines = resolveFlag(env.NOOT_BRAINCORE_MOCK_ENGINES, 'NOOT_BRAINCORE_MOCK_ENGINES');
   return {
