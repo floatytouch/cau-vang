@@ -1,6 +1,4 @@
-import {
-  NOOT_EVENT_TYPE_USAGE,
-} from '@noot/shared';
+import { NOOT_EVENT_TYPE_USAGE } from '@noot/shared';
 import type { ModelUsage } from '@anthropic-ai/claude-agent-sdk';
 import type { UsageEvent } from '@noot/shared';
 

@@ -140,7 +140,6 @@ function describeStep(outcome: StepOutcome): string {
   return [outcome.text, ...calls].filter(Boolean).join('\n');
 }
 
-
 function toolCallEndFields(toolOutcome: ToolOutcome): {
   status: ToolCallTerminalStatus;
   result: unknown;

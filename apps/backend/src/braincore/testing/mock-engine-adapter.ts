@@ -98,7 +98,11 @@ export function createMockBareApiAdapter(): EngineAdapter {
         type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: input.text,
       } satisfies NootEvent;
-      yield { ...meta(session, options, 1), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED } satisfies NootEvent;
+      yield {
+        ...meta(session, options, 1),
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_COMPLETED,
+      } satisfies NootEvent;
     },
     async cancel() {},
   };
@@ -114,7 +118,11 @@ export function createMockHarnessAdapter(): EngineAdapter {
         type: NOOT_EVENT_TYPE_TEXT_DELTA,
         text: `harness:${input.text}`,
       } satisfies NootEvent;
-      yield { ...meta(session, options, 1), type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED } satisfies NootEvent;
+      yield {
+        ...meta(session, options, 1),
+        type: NOOT_EVENT_TYPE_DONE,
+        reason: DONE_REASON_COMPLETED,
+      } satisfies NootEvent;
     },
     async cancel() {},
   };

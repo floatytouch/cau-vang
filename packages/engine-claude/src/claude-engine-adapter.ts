@@ -108,7 +108,11 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     if (resumeId && state.sawError && !state.sessionEstablished) {
       this.sessionHandles.forget(session.sessionId);
     }
-    yield { ...sequence.meta(), type: NOOT_EVENT_TYPE_DONE, reason: doneReason(abortController, state) };
+    yield {
+      ...sequence.meta(),
+      type: NOOT_EVENT_TYPE_DONE,
+      reason: doneReason(abortController, state),
+    };
   }
 
   /** Abort kills the CLI subprocess; `interrupt()` is not used because it needs streaming-input mode. */

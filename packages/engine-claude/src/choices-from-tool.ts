@@ -1,6 +1,4 @@
-import {
-  NOOT_EVENT_TYPE_CHOICES,
-} from '@noot/shared';
+import { NOOT_EVENT_TYPE_CHOICES } from '@noot/shared';
 import type { ChoiceOption, ChoicesEvent } from '@noot/shared';
 
 import type { EventSequence } from './event-sequence.js';

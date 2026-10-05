@@ -1,6 +1,4 @@
-import {
-  HEALTH_STATUS_OK,
-} from '@noot/shared';
+import { HEALTH_STATUS_OK } from '@noot/shared';
 import { Injectable } from '@nestjs/common';
 import type { HealthResponse } from '@noot/shared';
 

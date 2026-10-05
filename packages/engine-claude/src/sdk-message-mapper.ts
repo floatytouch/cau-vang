@@ -75,7 +75,9 @@ export class SdkMessageMapper {
     block: MessageOf<'assistant'>['message']['content'][number],
   ): NootEvent[] {
     if (block.type === 'thinking' && block.thinking) {
-      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: block.thinking }];
+      return [
+        { ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: block.thinking },
+      ];
     }
     if (block.type === 'text' && block.text) {
       return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: block.text }];
@@ -102,7 +104,7 @@ export class SdkMessageMapper {
       const base = {
         ...this.sequence.meta(),
         type: NOOT_EVENT_TYPE_TOOL_CALL,
-        phase: TOOL_CALL_PHASE_END as const,
+        phase: TOOL_CALL_PHASE_END,
         callId,
         name: this.toolCalls.nameOf(callId),
       };

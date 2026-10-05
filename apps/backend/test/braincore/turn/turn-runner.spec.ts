@@ -8,7 +8,10 @@ import type {
 } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
 import { ToolRegistry } from '../../../src/braincore/tools/tool-registry.js';
-import { runConversationTurn, TOOL_RESULTS_INPUT_PREFIX } from '../../../src/braincore/turn/turn-runner.js';
+import {
+  runConversationTurn,
+  TOOL_RESULTS_INPUT_PREFIX,
+} from '../../../src/braincore/turn/turn-runner.js';
 
 type Step = (input: TurnInput, session: EngineSession) => NootEvent[];
 

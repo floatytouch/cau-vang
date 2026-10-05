@@ -6,10 +6,10 @@ ESLint `no-nested-ternary` is an error repo-wide.
 
 ```ts
 // bad
-status: ok ? 'succeeded' : blocked ? 'blocked' : 'failed'
+status: ok ? 'succeeded' : blocked ? 'blocked' : 'failed';
 
 // good
-status: terminalToolCallStatus(outcome)
+status: terminalToolCallStatus(outcome);
 ```
 
 Extract a named helper (or early returns) so each branch has a clear name.

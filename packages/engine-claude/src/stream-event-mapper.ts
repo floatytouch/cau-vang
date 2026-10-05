@@ -76,7 +76,9 @@ export class StreamEventMapper {
       return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_TEXT_DELTA, text: delta.text }];
     }
     if (delta.type === NOOT_EVENT_TYPE_THINKING_DELTA && delta.thinking) {
-      return [{ ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: delta.thinking }];
+      return [
+        { ...this.sequence.meta(), type: NOOT_EVENT_TYPE_THINKING_DELTA, text: delta.thinking },
+      ];
     }
     if (delta.type !== 'input_json_delta' || !delta.partial_json) {
       return [];

@@ -3,7 +3,10 @@ import type { EngineSession, NootEvent, ToolBridge, TurnOptions } from '@noot/sh
 import { isNootEvent } from '@noot/shared';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ClaudeEngineAdapter, type ClaudeEngineAdapterOptions } from '../src/claude-engine-adapter.js';
+import {
+  ClaudeEngineAdapter,
+  type ClaudeEngineAdapterOptions,
+} from '../src/claude-engine-adapter.js';
 import type { ClaudeQueryFactory } from '../src/claude-query-factory.js';
 import { SessionHandleStore } from '../src/session-handle-store.js';
 

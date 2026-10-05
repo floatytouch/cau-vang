@@ -13,18 +13,18 @@ Rules below are grounded in:
 
 ## Pages
 
-| Page                                           | Topic                                      |
-| ---------------------------------------------- | ------------------------------------------ |
-| [naming.md](./naming.md)                       | Identifiers, constants, folders            |
-| [no-magic.md](./no-magic.md)                   | Protocol literals and magic numbers        |
-| [control-flow.md](./control-flow.md)           | No nested ternary; small functions         |
-| [types-and-errors.md](./types-and-errors.md)   | Public return types, no `any`, envelopes   |
-| [comments.md](./comments.md)                   | WHY-only comments                          |
-| [config-standard.md](./config-standard.md)     | Runtime config via ConfigService           |
-| [utf8-literals.md](./utf8-literals.md)         | Human text as real UTF-8 in source         |
-| [ascii-commits.md](./ascii-commits.md)         | Commit / PR text encoding                  |
-| [no-ai-attribution.md](./no-ai-attribution.md) | No AI trailers or generated footers        |
-| [nestjs-structure.md](./nestjs-structure.md)   | Nest feature-module layout                 |
-| [react-structure.md](./react-structure.md)     | React 19 component and hook rules          |
-| [test-layout.md](./test-layout.md)             | Tests under `test/`, never under `src/`    |
-| [test-practice.md](./test-practice.md)         | Mutation probes and fail-closed tests      |
+| Page                                           | Topic                                    |
+| ---------------------------------------------- | ---------------------------------------- |
+| [naming.md](./naming.md)                       | Identifiers, constants, folders          |
+| [no-magic.md](./no-magic.md)                   | Protocol literals and magic numbers      |
+| [control-flow.md](./control-flow.md)           | No nested ternary; small functions       |
+| [types-and-errors.md](./types-and-errors.md)   | Public return types, no `any`, envelopes |
+| [comments.md](./comments.md)                   | WHY-only comments                        |
+| [config-standard.md](./config-standard.md)     | Runtime config via ConfigService         |
+| [utf8-literals.md](./utf8-literals.md)         | Human text as real UTF-8 in source       |
+| [ascii-commits.md](./ascii-commits.md)         | Commit / PR text encoding                |
+| [no-ai-attribution.md](./no-ai-attribution.md) | No AI trailers or generated footers      |
+| [nestjs-structure.md](./nestjs-structure.md)   | Nest feature-module layout               |
+| [react-structure.md](./react-structure.md)     | React 19 component and hook rules        |
+| [test-layout.md](./test-layout.md)             | Tests under `test/`, never under `src/`  |
+| [test-practice.md](./test-practice.md)         | Mutation probes and fail-closed tests    |

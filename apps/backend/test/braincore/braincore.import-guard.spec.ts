@@ -3,7 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const BRAINCORE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/braincore');
+const BRAINCORE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../src/braincore',
+);
 
 /** Engine SDKs belong in adapters; the brain must stay model-agnostic. */
 const FORBIDDEN_PACKAGE =

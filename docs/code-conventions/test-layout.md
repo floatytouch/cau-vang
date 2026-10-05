@@ -8,11 +8,11 @@ This is a conscious deviation from NestJS's co-located-spec habit and from many 
 
 ## Examples
 
-| Source                                         | Test                                                  |
-| ---------------------------------------------- | ----------------------------------------------------- |
+| Source                                           | Test                                                   |
+| ------------------------------------------------ | ------------------------------------------------------ |
 | `apps/backend/src/braincore/turn/turn-runner.ts` | `apps/backend/test/braincore/turn/turn-runner.spec.ts` |
-| `packages/shared/src/conversation/events.ts`   | `packages/shared/test/conversation/events.spec.ts`    |
-| `apps/frontend/src/health/HealthStatus.tsx`    | `apps/frontend/test/health/HealthStatus.test.tsx`     |
+| `packages/shared/src/conversation/events.ts`     | `packages/shared/test/conversation/events.spec.ts`     |
+| `apps/frontend/src/health/HealthStatus.tsx`      | `apps/frontend/test/health/HealthStatus.test.tsx`      |
 
 ## Tooling
 

@@ -40,7 +40,11 @@ export default defineConfig(
     },
   },
   {
-    files: ['apps/frontend/src/**/*.tsx', 'apps/frontend/src/**/*.ts', 'apps/frontend/test/**/*.tsx'],
+    files: [
+      'apps/frontend/src/**/*.tsx',
+      'apps/frontend/src/**/*.ts',
+      'apps/frontend/test/**/*.tsx',
+    ],
     languageOptions: { globals: globals.browser },
     extends: [reactHooks.configs.flat.recommended],
   },
@@ -54,6 +58,10 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/naming-convention': 'off',
     },
+  },
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: { globals: globals.node },
   },
   prettierConfig,
 );

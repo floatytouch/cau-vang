@@ -1,6 +1,4 @@
-import {
-  ENGINE_TOOL_LOOP_OWN,
-} from '@noot/shared';
+import { ENGINE_TOOL_LOOP_OWN } from '@noot/shared';
 import type { EngineCapabilities } from '@noot/shared';
 
 export const CLAUDE_ENGINE_ID = 'claude';

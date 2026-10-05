@@ -4,8 +4,14 @@ import path from 'node:path';
 import { isNootEvent, type EngineAdapter, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_IDENTITY_CONFIG_DIR } from '../../src/config/app-config.js';
-import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from '../../src/braincore/braincore.service.js';
-import { IDENTITY_CONFIG_FILE, renderBotNameClause } from '../../src/braincore/identity/identity-builder.js';
+import {
+  BraincoreService,
+  BRAINCORE_EVENT_CHANNEL,
+} from '../../src/braincore/braincore.service.js';
+import {
+  IDENTITY_CONFIG_FILE,
+  renderBotNameClause,
+} from '../../src/braincore/identity/identity-builder.js';
 import type { StoredSession } from '../../src/braincore/session/session-types.js';
 import {
   MOCK_ENGINE_ID,
