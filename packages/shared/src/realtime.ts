@@ -34,7 +34,7 @@ export type WsNootEventMessage = WsMessage<typeof WS_NOOT_EVENT, NootEvent>;
 export type WsAuthErrorPayload = { code: typeof WS_AUTH_ERROR_CODE; message: string };
 export type WsAuthErrorMessage = WsMessage<typeof WS_AUTH_ERROR_EVENT, WsAuthErrorPayload>;
 
-/** Socket.IO `auth` object (and query) shape expected by BraincoreGateway. */
+/** Socket.IO handshake `auth` object expected by BraincoreGateway. */
 export function buildWsAuth(token: string): { [WS_AUTH_TOKEN_KEY]: string } {
   return { [WS_AUTH_TOKEN_KEY]: token };
 }

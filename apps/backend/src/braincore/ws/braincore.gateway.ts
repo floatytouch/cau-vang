@@ -78,9 +78,6 @@ export class BraincoreGateway implements OnGatewayInit {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: unknown,
   ): Promise<FunnelAck> {
-    if (!this.clientMayProceed(client)) {
-      return { ok: false, error: WS_UNAUTHORIZED_MESSAGE };
-    }
     const sessionId = readString(body, 'sessionId');
     if (!sessionId || !this.braincore.sessions.hasSession(sessionId)) {
       return { ok: false, error: 'unknown sessionId' };
@@ -90,13 +87,7 @@ export class BraincoreGateway implements OnGatewayInit {
   }
 
   @SubscribeMessage(WS_CHAT_SEND_EVENT)
-  async handleChatSend(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: unknown,
-  ): Promise<ChatSendAck> {
-    if (!this.clientMayProceed(client)) {
-      return { ok: false, error: WS_UNAUTHORIZED_MESSAGE };
-    }
+  async handleChatSend(@MessageBody() body: unknown): Promise<ChatSendAck> {
     const sessionId = readString(body, 'sessionId');
     const text = readString(body, 'text');
     if (!sessionId || !text?.trim()) {
@@ -248,8 +239,7 @@ export class BraincoreGateway implements OnGatewayInit {
 
   private enforceHandshakeAuth(socket: Socket, next: (error?: Error) => void): void {
     const expected = this.config.get('wsToken', { infer: true });
-    if (!expected) {
-      socket.data.wsAuthenticated = true;
+    if (expected === undefined) {
       next();
       return;
     }
@@ -267,16 +257,7 @@ export class BraincoreGateway implements OnGatewayInit {
       next(error);
       return;
     }
-    socket.data.wsAuthenticated = true;
     next();
-  }
-
-  private clientMayProceed(client: Socket): boolean {
-    if (client.data.wsAuthenticated === true) {
-      return true;
-    }
-    const expected = this.config.get('wsToken', { infer: true });
-    return expected === undefined;
   }
 }
 

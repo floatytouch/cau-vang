@@ -38,7 +38,10 @@ BrainCore (`apps/backend/src/braincore/`): sessions persist under
 is read from `NOOT_IDENTITY_CONFIG_DIR` (default `apps/backend/config/braincore`).
 Set `NOOT_BRAINCORE_MOCK_ENGINES=1` to register the mock engines for local dev.
 
-WebSocket connects to BrainCore must present `NOOT_WS_TOKEN` (Socket.IO
-`auth.token` or query `token`). Boot fails closed without that token unless mock
-engines are enabled. The Vite client reads the same secret from
-`VITE_NOOT_WS_TOKEN` via `apps/frontend/src/realtime/wsAuth.ts`. See `.env.example`.
+WebSocket connects to BrainCore must present `NOOT_WS_TOKEN` in the Socket.IO
+handshake `auth.token` (a token in the URL query is ignored, so it never lands in
+proxy or access logs). Boot fails closed without that token unless mock engines are
+enabled. The backend reads the process environment only (no `.env` loading); the
+Vite client reads the same secret from `VITE_NOOT_WS_TOKEN` (shell or
+`apps/frontend/.env.local`) via `apps/frontend/src/realtime/wsAuth.ts`. See
+`.env.example`.
