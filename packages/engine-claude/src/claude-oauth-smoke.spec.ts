@@ -126,8 +126,10 @@ describe.runIf(RUN_OAUTH_SMOKE)('Claude OAuth smoke', () => {
     { timeout: SMOKE_TIMEOUT_MS },
     async () => {
       const events: NootEvent[] = [];
-      for await (const event of newTurn('Think briefly, then give me the marker.', MARKER_TOOLS)
-        .stream) {
+      for await (const event of newTurn(
+        'Reason step by step about which is larger, 17*23 or 391-2, then give me the marker and your answer.',
+        MARKER_TOOLS,
+      ).stream) {
         events.push(event);
       }
 
