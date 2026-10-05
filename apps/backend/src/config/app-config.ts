@@ -19,13 +19,17 @@ export interface BraincoreRuntimeConfig {
 
 export interface AppConfig {
   port: number;
+  /** Shared WS gateway token; undefined only when mock engines are enabled. */
+  wsToken: string | undefined;
   braincore: BraincoreRuntimeConfig;
 }
 
 /** Sole place that reads process.env for Nest boot; feature code uses ConfigService. */
 export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const mockEngines = resolveFlag(env.NOOT_BRAINCORE_MOCK_ENGINES, 'NOOT_BRAINCORE_MOCK_ENGINES');
   return {
     port: resolvePort(env.PORT),
+    wsToken: resolveWsToken(env.NOOT_WS_TOKEN, mockEngines),
     braincore: {
       dataDir: resolvePath(
         env.NOOT_BRAINCORE_DATA_DIR,
@@ -47,9 +51,20 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         DEFAULT_MAX_CHAT_TEXT_LENGTH,
         'NOOT_BRAINCORE_MAX_CHAT_TEXT_LENGTH',
       ),
-      mockEngines: resolveFlag(env.NOOT_BRAINCORE_MOCK_ENGINES, 'NOOT_BRAINCORE_MOCK_ENGINES'),
+      mockEngines,
     },
   };
+}
+
+function resolveWsToken(raw: string | undefined, mockEngines: boolean): string | undefined {
+  const trimmed = raw?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  if (mockEngines) {
+    return undefined;
+  }
+  throw new Error('NOOT_WS_TOKEN is required unless NOOT_BRAINCORE_MOCK_ENGINES=1');
 }
 
 function resolvePath(raw: string | undefined, fallback: string, name: string): string {

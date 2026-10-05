@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { mkdtemp, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -17,8 +18,9 @@ import {
   WS_SUBSCRIBE_SESSION_EVENT,
   type EngineAdapter,
   type NootEvent,
+  type WsAuthErrorMessage,
 } from '@noot/shared';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../../../src/app.module.js';
 import { DEFAULT_MAX_CHAT_TEXT_LENGTH } from '../../../src/config/app-config.js';
 import { BraincoreService } from '../../../src/braincore/braincore.service.js';
@@ -26,6 +28,8 @@ import {
   MOCK_ENGINE_CAPABILITIES,
   MOCK_ENGINE_ID,
 } from '../../../src/braincore/testing/mock-engine-adapter.js';
+import { RawSocketIoClient } from '../../support/raw-socket-io-client.js';
+import { WS_UNAUTHORIZED_MESSAGE } from '../../../src/braincore/ws/ws-auth.js';
 
 const BLOCKING_ENGINE_ID = 'blocking-until-cancel';
 
@@ -60,60 +64,29 @@ function createBlockingAdapter(): EngineAdapter {
   };
 }
 
-const ENV_KEYS = ['NOOT_BRAINCORE_DATA_DIR', 'NOOT_BRAINCORE_MOCK_ENGINES'] as const;
+const ENV_KEYS = [
+  'NOOT_BRAINCORE_DATA_DIR',
+  'NOOT_BRAINCORE_MOCK_ENGINES',
+  'NOOT_WS_TOKEN',
+] as const;
 
-/** Minimal Socket.IO v5 client over the built-in WebSocket: connect, emit-with-ack, collect events. */
-class RawSocketIoClient {
-  private nextAckId = 0;
-  private readonly acks = new Map<number, (value: unknown) => void>();
-  readonly events: { name: string; payload: unknown }[] = [];
-  private connected!: () => void;
-  readonly ready = new Promise<void>((resolve) => (this.connected = resolve));
+const GATEWAY_WS_TOKEN = 'nv10-gateway-test-token';
+const LOGGER_METHODS = ['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const;
 
-  constructor(private readonly socket: WebSocket) {
-    socket.addEventListener('message', (message) => this.onFrame(String(message.data)));
-  }
-
-  static async connect(port: number): Promise<RawSocketIoClient> {
-    const socket = new WebSocket(`ws://127.0.0.1:${port}/socket.io/?EIO=4&transport=websocket`);
-    const client = new RawSocketIoClient(socket);
-    await client.ready;
-    return client;
-  }
-
-  emit(name: string, payload: unknown): Promise<unknown> {
-    const ackId = this.nextAckId++;
-    this.socket.send(`42${ackId}${JSON.stringify([name, payload])}`);
-    return new Promise((resolve) => this.acks.set(ackId, resolve));
-  }
-
-  close(): void {
-    this.socket.close();
-  }
-
-  private onFrame(frame: string): void {
-    if (frame.startsWith('0')) {
-      this.socket.send('40');
-    } else if (frame === '2') {
-      this.socket.send('3');
-    } else if (frame.startsWith('40')) {
-      this.connected();
-    } else if (frame.startsWith('43')) {
-      const match = /^43(\d+)(.*)$/s.exec(frame);
-      const [payload] = JSON.parse(match![2]!) as unknown[];
-      this.acks.get(Number(match![1]))?.(payload);
-    } else if (frame.startsWith('42')) {
-      const [name, payload] = JSON.parse(frame.slice(2)) as [string, unknown];
-      this.events.push({ name, payload });
-    }
-  }
+async function connect(port: number, token: string): Promise<RawSocketIoClient> {
+  const client = RawSocketIoClient.open(port, { auth: { token } });
+  await client.ready;
+  return client;
 }
 
 describe('BraincoreGateway over a real Socket.IO connection', () => {
   let app: INestApplication;
   let dataDir: string;
+  let port: number;
   let client: RawSocketIoClient;
   const savedEnv = new Map<string, string | undefined>();
+  const logSpies = LOGGER_METHODS.map((method) => vi.spyOn(Logger.prototype, method));
+  const loggedText = () => JSON.stringify(logSpies.map((spy) => spy.mock.calls));
 
   beforeAll(async () => {
     dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-gateway-'));
@@ -122,16 +95,18 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     }
     process.env.NOOT_BRAINCORE_DATA_DIR = dataDir;
     process.env.NOOT_BRAINCORE_MOCK_ENGINES = '1';
+    process.env.NOOT_WS_TOKEN = GATEWAY_WS_TOKEN;
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     await app.listen(0, '127.0.0.1');
-    const { port } = app.getHttpServer().address() as AddressInfo;
-    client = await RawSocketIoClient.connect(port);
+    port = (app.getHttpServer().address() as AddressInfo).port;
+    client = await connect(port, GATEWAY_WS_TOKEN);
   });
 
   afterAll(async () => {
     client?.close();
     await app?.close();
+    logSpies.forEach((spy) => spy.mockRestore());
     for (const [key, value] of savedEnv) {
       if (value === undefined) {
         delete process.env[key];
@@ -162,10 +137,10 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       .map((event) => (event.payload as { payload: NootEvent }).payload);
     expect(payloads.map((event) => [event.type, event.seq])).toEqual([
       ['progress', 0],
-      [NOOT_EVENT_TYPE_TEXT_DELTA, 1],
+      ['text_delta', 1],
       ['usage', 2],
       ['progress', 3],
-      [NOOT_EVENT_TYPE_DONE, 4],
+      ['done', 4],
     ]);
     expect(payloads[1]).toMatchObject({ sessionId: session.id, text: 'hi there' });
   });
@@ -254,6 +229,52 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id })).toEqual({
       ok: true,
     });
+  });
+
+  it('rejects a connect with no token with an auth_error envelope', async () => {
+    const rejected = RawSocketIoClient.open(port);
+    expect(await rejected.rejection()).toEqual({
+      message: WS_UNAUTHORIZED_MESSAGE,
+      data: {
+        type: 'auth_error',
+        payload: { code: 'unauthorized', message: WS_UNAUTHORIZED_MESSAGE },
+        sentAt: expect.any(String),
+      } satisfies WsAuthErrorMessage,
+    });
+    rejected.close();
+  });
+
+  it.each([
+    ['a longer token', `${GATEWAY_WS_TOKEN}-wrong`],
+    ['a same-length token', `${GATEWAY_WS_TOKEN.slice(0, -1)}X`],
+  ])('rejects %s and logs the rejection without any token', async (_label, token) => {
+    logSpies.forEach((spy) => spy.mockClear());
+    const rejected = RawSocketIoClient.open(port, { auth: { token } });
+    expect(await rejected.rejection()).toMatchObject({ message: WS_UNAUTHORIZED_MESSAGE });
+    rejected.close();
+    const logged = loggedText();
+    expect(logged).toContain('websocket handshake rejected');
+    expect(logged).not.toContain(GATEWAY_WS_TOKEN);
+    expect(logged).not.toContain(token);
+  });
+
+  it('rejects the correct token when it only arrives in the URL query', async () => {
+    const rejected = RawSocketIoClient.open(port, {
+      query: { token: GATEWAY_WS_TOKEN },
+    });
+    expect(await rejected.rejection()).toMatchObject({ message: WS_UNAUTHORIZED_MESSAGE });
+    rejected.close();
+  });
+
+  it('accepts concurrent connects that present the correct token', async () => {
+    const clients = await Promise.all(
+      Array.from({ length: 5 }, () => connect(port, GATEWAY_WS_TOKEN)),
+    );
+    expect(await clients[0]!.emit(WS_SUBSCRIBE_SESSION_EVENT, { sessionId: 'nope' })).toEqual({
+      ok: false,
+      error: 'unknown sessionId',
+    });
+    clients.forEach((connected) => connected.close());
   });
 });
 
