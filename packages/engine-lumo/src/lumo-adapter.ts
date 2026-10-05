@@ -29,23 +29,23 @@ export interface LumoAdapterOptions {
 }
 
 export function createLumoAdapter(options: LumoAdapterOptions = {}): EngineAdapter {
-  const client =
-    options.client ??
-    new LumoProxyClient({
-      config: options.config ?? readLumoClientConfig(),
-    });
-  return new LumoEngineAdapter(client);
+  const { client, config } = options;
+  // Resolved per turn so a missing key fails that turn, not the process that registers engines.
+  const resolveClient = client
+    ? () => client
+    : () => new LumoProxyClient({ config: config ?? readLumoClientConfig() });
+  return new LumoEngineAdapter(resolveClient);
 }
 
 class LumoEngineAdapter implements EngineAdapter {
   readonly id = LUMO_ENGINE_ID;
   readonly capabilities = LUMO_CAPABILITIES;
 
-  private readonly client: LumoProxyClient;
+  private readonly resolveClient: () => LumoProxyClient;
   private readonly abortByTurn = new Map<string, AbortController>();
 
-  constructor(client: LumoProxyClient) {
-    this.client = client;
+  constructor(resolveClient: () => LumoProxyClient) {
+    this.resolveClient = resolveClient;
   }
 
   async *startTurn(
@@ -70,7 +70,8 @@ class LumoEngineAdapter implements EngineAdapter {
 
     try {
       const messages = buildLumoChatMessages(options.systemPrompt, session.history, input.text);
-      const result = await this.client.complete(options.model, messages, abort.signal);
+      const client = this.resolveClient();
+      const result = await client.complete(options.model, messages, abort.signal);
 
       if (abort.signal.aborted) {
         yield { ...meta(), type: 'done', reason: 'cancelled' };
@@ -119,7 +120,9 @@ class LumoEngineAdapter implements EngineAdapter {
       };
       yield { ...meta(), type: 'done', reason: 'failed' };
     } finally {
-      this.abortByTurn.delete(options.turnId);
+      if (this.abortByTurn.get(options.turnId) === abort) {
+        this.abortByTurn.delete(options.turnId);
+      }
     }
   }
 
@@ -139,9 +142,8 @@ function mapTurnError(error: unknown): { code: string; message: string; recovera
   if (error instanceof LumoApiError) {
     return {
       code: 'engine_unavailable',
-      message:
-        'Lumo could not be reached (local lumo-tamer proxy is down or rejected the request).',
-      recoverable: true,
+      message: `Lumo could not be reached (local lumo-tamer proxy is down or rejected the request): ${error.message}`,
+      recoverable: false,
     };
   }
   return {

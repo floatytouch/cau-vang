@@ -1,8 +1,9 @@
-import { LumoCredentialsError, type LumoClientConfig } from './lumo-config.js';
+import type { LumoClientConfig } from './lumo-config.js';
 import type { LumoWireMessage } from './recap-window.js';
 
 export const LUMO_REASONING_OFF = 'none';
 export const LUMO_REQUEST_TIMEOUT_MS = 300_000;
+const ERROR_DETAIL_MAX_CHARS = 400;
 
 export interface LumoUsage {
   inputTokens: number;
@@ -82,11 +83,17 @@ export class LumoProxyClient {
 
       return parseCompletionBody(body);
     } catch (error) {
-      if (error instanceof LumoApiError || error instanceof LumoCredentialsError) {
+      if (error instanceof LumoApiError) {
         throw error;
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (signal?.aborted) {
         throw error;
+      }
+      if (controller.signal.aborted) {
+        throw new LumoApiError(
+          `the lumo-tamer proxy at ${url} did not answer within ${this.requestTimeoutMs} ms`,
+          { cause: error },
+        );
       }
       throw new LumoApiError(`cannot reach the lumo-tamer proxy at ${url}: ${String(error)}`, {
         cause: error,
@@ -109,7 +116,7 @@ function parseCompletionBody(body: unknown): LumoCompletionResult {
   if (!Array.isArray(choices) || choices.length === 0) {
     throw new LumoApiError(`the proxy answered without any choices: ${shortDetail(body)}`);
   }
-  const first = choices[0];
+  const first: unknown = choices[0];
   if (!first || typeof first !== 'object') {
     throw new LumoApiError(`the proxy answered without a message: ${shortDetail(first)}`);
   }
@@ -117,9 +124,11 @@ function parseCompletionBody(body: unknown): LumoCompletionResult {
   if (!message || typeof message !== 'object') {
     throw new LumoApiError(`the proxy answered without a message: ${shortDetail(first)}`);
   }
-  const content = String((message as Record<string, unknown>).content ?? '').trim();
-  const usage = mapUsage(record.usage);
-  return { content, usage };
+  const content = (message as Record<string, unknown>).content ?? '';
+  if (typeof content !== 'string') {
+    throw new LumoApiError(`the proxy answered with non-text content: ${shortDetail(content)}`);
+  }
+  return { content: content.trim(), usage: mapUsage(record.usage) };
 }
 
 function mapUsage(raw: unknown): LumoUsage {
@@ -128,20 +137,20 @@ function mapUsage(raw: unknown): LumoUsage {
   }
   const usage = raw as Record<string, unknown>;
   return {
-    inputTokens: numberField(usage.prompt_tokens),
-    outputTokens: numberField(usage.completion_tokens),
+    inputTokens: tokenCount(usage.prompt_tokens),
+    outputTokens: tokenCount(usage.completion_tokens),
   };
 }
 
-function numberField(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+function tokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
 function shortDetail(value: unknown): string {
-  const text = String(value).replace(/\s+/g, ' ').trim();
-  const max = 400;
-  if (text.length <= max) {
+  const raw = typeof value === 'string' ? value : JSON.stringify(value);
+  const text = String(raw).replace(/\s+/g, ' ').trim();
+  if (text.length <= ERROR_DETAIL_MAX_CHARS) {
     return text;
   }
-  return `${text.slice(0, max)} ...(truncated)`;
+  return `${text.slice(0, ERROR_DETAIL_MAX_CHARS)} ...(truncated)`;
 }

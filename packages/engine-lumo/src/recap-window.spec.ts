@@ -5,10 +5,14 @@ import {
   HISTORY_MESSAGE_CHARS,
   HISTORY_MESSAGE_LIMIT,
 } from './recap-budget.js';
-import { buildLumoChatMessages, historyWindow, totalHistoryCharsInWindow } from './recap-window.js';
+import { buildLumoChatMessages, historyWindow, type LumoWireMessage } from './recap-window.js';
 
 function userMessage(text: string): ConversationMessage {
   return { role: 'user', text };
+}
+
+function windowChars(window: readonly LumoWireMessage[]): number {
+  return window.reduce((sum, message) => sum + message.content.length, 0);
 }
 
 function assistantMessage(text: string): ConversationMessage {
@@ -16,7 +20,7 @@ function assistantMessage(text: string): ConversationMessage {
 }
 
 describe('historyWindow', () => {
-  it('keeps the newest messages within the char budget', () => {
+  it('keeps at most HISTORY_MESSAGE_LIMIT of the newest messages', () => {
     const history: ConversationMessage[] = [];
     for (let index = 0; index < 50; index += 1) {
       history.push(userMessage(`message-${index}-${'x'.repeat(500)}`));
@@ -24,9 +28,43 @@ describe('historyWindow', () => {
 
     const window = historyWindow(history);
 
-    expect(window.length).toBeLessThanOrEqual(HISTORY_MESSAGE_LIMIT);
-    expect(totalHistoryCharsInWindow(history)).toBeLessThanOrEqual(HISTORY_CHAR_BUDGET);
-    expect(window.at(-1)?.content).toContain('message-49');
+    expect(window).toHaveLength(HISTORY_MESSAGE_LIMIT);
+    expect(window[0]?.content).toContain('message-10-');
+    expect(window.at(-1)?.content).toContain('message-49-');
+  });
+
+  it('stops at the char budget even when the message limit is not reached', () => {
+    const history: ConversationMessage[] = [];
+    for (let index = 0; index < 10; index += 1) {
+      history.push(userMessage(`m${index}-${'x'.repeat(HISTORY_MESSAGE_CHARS)}`));
+    }
+
+    const window = historyWindow(history);
+
+    expect(windowChars(window)).toBeLessThanOrEqual(HISTORY_CHAR_BUDGET);
+    expect(window).toHaveLength(Math.floor(HISTORY_CHAR_BUDGET / HISTORY_MESSAGE_CHARS));
+    expect(window.at(-1)?.content.startsWith('m9-')).toBe(true);
+  });
+
+  it('drops everything older than the first message that overflows the budget', () => {
+    const filler = 'y'.repeat(HISTORY_MESSAGE_CHARS);
+    const fillerCount = Math.floor(HISTORY_CHAR_BUDGET / HISTORY_MESSAGE_CHARS) - 1;
+    const history: ConversationMessage[] = [
+      userMessage('oldest short'),
+      assistantMessage(filler),
+      ...Array.from({ length: fillerCount }, () => assistantMessage(filler)),
+      userMessage('newest short'),
+    ];
+
+    const window = historyWindow(history);
+
+    expect(window.map((message) => message.content)).not.toContain('oldest short');
+    expect(window.at(-1)?.content).toBe('newest short');
+    expect(windowChars(window)).toBeLessThanOrEqual(HISTORY_CHAR_BUDGET);
+  });
+
+  it('returns an empty window for an empty history', () => {
+    expect(historyWindow([])).toEqual([]);
   });
 
   it('truncates a single message longer than HISTORY_MESSAGE_CHARS', () => {

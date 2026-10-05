@@ -24,9 +24,4 @@ export {
   HISTORY_MESSAGE_CHARS,
   HISTORY_MESSAGE_LIMIT,
 } from './recap-budget.js';
-export {
-  buildLumoChatMessages,
-  historyWindow,
-  totalHistoryCharsInWindow,
-  type LumoWireMessage,
-} from './recap-window.js';
+export { buildLumoChatMessages, historyWindow, type LumoWireMessage } from './recap-window.js';

@@ -1,9 +1,13 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isBareApiEngine } from '@noot/shared';
-import type { NootEvent } from '@noot/shared';
+import { isBareApiEngine, isNootEvent } from '@noot/shared';
+import type { NootEvent, TurnOptions } from '@noot/shared';
 import { createLumoAdapter, LUMO_CAPABILITIES } from './lumo-adapter.js';
+import { LUMO_API_KEY_ENV } from './lumo-config.js';
 import { LumoProxyClient } from './lumo-proxy-client.js';
+
+const SESSION = { sessionId: 's1', history: [] };
+const OPTIONS: TurnOptions = { turnId: 't1', model: 'lumo-lite', systemPrompt: 'You are Not.' };
 
 async function collect(stream: AsyncIterable<NootEvent>): Promise<NootEvent[]> {
   const events: NootEvent[] = [];
@@ -39,19 +43,23 @@ describe('createLumoAdapter smoke through HTTP', () => {
   });
 
   it('completes one turn against a local stand-in proxy', async () => {
+    let received: { authorization?: string; body: Record<string, unknown> } | undefined;
     server = createServer((request, response) => {
       if (request.method !== 'POST' || request.url !== '/v1/chat/completions') {
         response.statusCode = 404;
         response.end('not found');
         return;
       }
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(
-        JSON.stringify({
-          choices: [{ message: { content: 'pong' } }],
-          usage: { prompt_tokens: 5, completion_tokens: 1 },
-        }),
-      );
+      void readJson(request).then((body) => {
+        received = { authorization: request.headers.authorization, body };
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            choices: [{ message: { content: 'pong' } }],
+            usage: { prompt_tokens: 5, completion_tokens: 1 },
+          }),
+        );
+      });
     });
 
     await new Promise<void>((resolve) => {
@@ -73,12 +81,113 @@ describe('createLumoAdapter smoke through HTTP', () => {
       adapter.startTurn(
         { sessionId: 's1', history: [{ role: 'user', text: 'ping' }] },
         { text: 'ping' },
-        { turnId: 't1', model: 'lumo-lite', systemPrompt: 'You are Not.' },
+        {
+          ...OPTIONS,
+          tools: { definitions: [], execute: async () => ({ ok: true, result: null }) },
+        },
       ),
     );
 
+    expect(events.every(isNootEvent)).toBe(true);
     expect(events.map((event) => event.type)).toEqual(['text_delta', 'usage', 'done']);
+    expect(received?.authorization).toBe('Bearer smoke-key');
+    expect(received?.body).toMatchObject({ model: 'lumo-lite', reasoning_effort: 'none' });
+    expect(received?.body).not.toHaveProperty('tools');
     expect(events[0]).toMatchObject({ type: 'text_delta', text: 'pong' });
     expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'completed' });
   });
 });
+
+describe('createLumoAdapter failures', () => {
+  it('reports a missing API key as one failed turn instead of throwing at creation', async () => {
+    const saved = process.env[LUMO_API_KEY_ENV];
+    delete process.env[LUMO_API_KEY_ENV];
+    try {
+      const adapter = createLumoAdapter();
+      const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+
+      expect(events.every(isNootEvent)).toBe(true);
+      expect(events.map((event) => event.type)).toEqual(['error', 'done']);
+      expect(events[0]).toMatchObject({ code: 'missing_credentials', recoverable: false });
+      expect(events[1]).toMatchObject({ reason: 'failed' });
+    } finally {
+      if (saved !== undefined) {
+        process.env[LUMO_API_KEY_ENV] = saved;
+      }
+    }
+  });
+
+  it('reports a proxy that refuses connections as engine_unavailable', async () => {
+    const adapter = createLumoAdapter({
+      client: new LumoProxyClient({
+        config: { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'k' },
+        fetchImpl: async () => {
+          throw new TypeError('fetch failed: ECONNREFUSED');
+        },
+      }),
+    });
+
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+
+    expect(events.every(isNootEvent)).toBe(true);
+    expect(events[0]).toMatchObject({
+      type: 'error',
+      code: 'engine_unavailable',
+      recoverable: false,
+    });
+    expect((events[0] as { message: string }).message).toContain('ECONNREFUSED');
+    expect(events.map((event) => event.seq)).toEqual([0, 1]);
+    expect(events.at(-1)).toMatchObject({ type: 'done', reason: 'failed' });
+  });
+
+  it('reports an empty answer as a failed turn', async () => {
+    const adapter = createLumoAdapter({
+      client: new LumoProxyClient({
+        config: { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'k' },
+        fetchImpl: async () =>
+          new Response(JSON.stringify({ choices: [{ message: { content: '  ' } }] })),
+      }),
+    });
+
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+
+    expect(events.map((event) => event.type)).toEqual(['error', 'done']);
+    expect(events[0]).toMatchObject({ code: 'empty_answer' });
+  });
+
+  it('ends a cancelled in-flight turn with done(cancelled) only', async () => {
+    let requestStarted: () => void = () => undefined;
+    const started = new Promise<void>((resolve) => {
+      requestStarted = resolve;
+    });
+    const adapter = createLumoAdapter({
+      client: new LumoProxyClient({
+        config: { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'k' },
+        fetchImpl: (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            requestStarted();
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted.', 'AbortError'));
+            });
+          }),
+      }),
+    });
+
+    const pending = collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+    await started;
+    await adapter.cancel(OPTIONS.turnId);
+    const events = await pending;
+
+    expect(events.every(isNootEvent)).toBe(true);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'done', reason: 'cancelled', seq: 0 });
+  });
+});
+
+async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(chunk as Buffer);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
+}

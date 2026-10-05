@@ -46,10 +46,6 @@ export function historyWindow(history: readonly ConversationMessage[]): LumoWire
   return window;
 }
 
-export function totalHistoryCharsInWindow(history: readonly ConversationMessage[]): number {
-  return historyWindow(history).reduce((sum, message) => sum + message.content.length, 0);
-}
-
 function normalizeMessageText(text: string): string {
   const collapsed = text.split(/\s+/).filter(Boolean).join(' ');
   if (collapsed.length <= HISTORY_MESSAGE_CHARS) {
