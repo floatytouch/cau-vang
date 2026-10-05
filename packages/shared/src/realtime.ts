@@ -24,8 +24,8 @@ export const WS_SET_MODE_EVENT = 'set_mode';
 export const WS_GET_MODE_EVENT = 'get_mode';
 export const WS_PLAN_APPROVE_EVENT = 'plan_approve';
 
-/** Socket.IO handshake `auth.token` field expected by the NV-10 WS auth gate. */
-export const WS_AUTH_TOKEN_FIELD = 'token';
+/** Handshake field / query key for the shared BrainCore WS token. */
+export const WS_AUTH_TOKEN_KEY = 'token';
 
 export type WsPongMessage = WsMessage<typeof WS_PONG_EVENT, { echo: string }>;
 export type WsNootEventMessage = WsMessage<typeof WS_NOOT_EVENT, NootEvent>;

@@ -75,8 +75,67 @@ describe('Chat UI against a mock funnel', () => {
     });
     expect(screen.getByText('remember this')).toBeTruthy();
     expect(screen.getByText('kept reply')).toBeTruthy();
+    const sessionId = (await funnel.listSessions())[0]!.id;
+    expect(await funnel.getHistory(sessionId)).toMatchObject({ engineId: 'mock-harness' });
+  });
+
+  it('disables choices from an earlier turn once the user types a new message', async () => {
+    const funnel = new MockFunnel();
+    render(<App funnel={funnel} />);
+    await screen.findByText('Funnel: Connected');
+
+    await sendMessage('first');
+    const optionA = (await screen.findByRole('button', { name: 'Option A' })) as HTMLButtonElement;
+    await waitFor(() => expect(optionA.disabled).toBe(false));
+
+    await sendMessage('typed instead');
+    expect(await screen.findByText('echo: typed instead')).toBeTruthy();
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Stop' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+    expect(optionA.disabled).toBe(true);
+  });
+
+  it('settles the composer when the send ack arrives without a done event', async () => {
+    const funnel = new MockFunnel({ events: [textEvent('half a reply', 0)] });
+    render(<App funnel={funnel} />);
+    await screen.findByText('Funnel: Connected');
+
+    await sendMessage('no done please');
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Stop' }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+    expect((screen.getByLabelText('Message') as HTMLTextAreaElement).disabled).toBe(false);
+  });
+
+  it('settles and reports when the funnel drops mid-turn', async () => {
+    const funnel = new MockFunnel({
+      events: [textEvent('partial', 0)],
+      sendFailure: 'funnel disconnected during chat_send',
+    });
+    render(<App funnel={funnel} />);
+    await screen.findByText('Funnel: Connected');
+
+    await sendMessage('drop me');
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'funnel disconnected during chat_send',
+    );
+    expect((screen.getByRole('button', { name: 'Stop' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
+
+async function sendMessage(text: string): Promise<void> {
+  const draft = screen.getByLabelText('Message') as HTMLTextAreaElement;
+  await waitFor(() => expect(draft.disabled).toBe(false));
+  fireEvent.change(draft, { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+}
 
 function longStreamEvents(): NootEvent[] {
   return [

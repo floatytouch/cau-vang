@@ -1,6 +1,6 @@
 import {
   DEFAULT_CONVERSATION_MODE,
-  WS_AUTH_TOKEN_FIELD,
+  WS_AUTH_TOKEN_KEY,
   WS_CANCEL_TURN_EVENT,
   WS_CHAT_SEND_EVENT,
   WS_CREATE_SESSION_EVENT,
@@ -30,11 +30,14 @@ import { io, type Socket } from 'socket.io-client';
 import type { FrontendConfig } from '../config/frontend-config.js';
 import type { FunnelConnectionState, FunnelPort } from './funnel-port.js';
 
+const CONTROL_ACK_TIMEOUT_MS = 15_000;
+
 export class SocketFunnelClient implements FunnelPort {
   connectionState: FunnelConnectionState = 'disconnected';
   private socket: Socket | undefined;
   private readonly eventListeners = new Set<(event: NootEvent) => void>();
   private readonly connectionListeners = new Set<(state: FunnelConnectionState) => void>();
+  private readonly subscribedSessionIds = new Set<string>();
 
   constructor(private readonly config: FrontendConfig) {}
 
@@ -44,7 +47,7 @@ export class SocketFunnelClient implements FunnelPort {
     }
     this.setConnection('connecting');
     const socket = io(this.config.wsUrl || undefined, {
-      auth: { [WS_AUTH_TOKEN_FIELD]: this.config.wsToken },
+      auth: this.config.wsToken ? { [WS_AUTH_TOKEN_KEY]: this.config.wsToken } : {},
       transports: ['websocket'],
       autoConnect: false,
     });
@@ -54,7 +57,10 @@ export class SocketFunnelClient implements FunnelPort {
         listener(message.payload);
       }
     });
-    socket.on('connect', () => this.setConnection('connected'));
+    socket.on('connect', () => {
+      this.setConnection('connected');
+      this.resubscribe(socket);
+    });
     socket.on('disconnect', () => this.setConnection('disconnected'));
     socket.on('connect_error', () => this.setConnection('error'));
 
@@ -81,6 +87,7 @@ export class SocketFunnelClient implements FunnelPort {
   disconnect(): void {
     this.socket?.disconnect();
     this.socket = undefined;
+    this.subscribedSessionIds.clear();
     this.setConnection('disconnected');
   }
 
@@ -95,12 +102,16 @@ export class SocketFunnelClient implements FunnelPort {
     return () => this.connectionListeners.delete(listener);
   }
 
-  subscribeSession(sessionId: string): Promise<FunnelAck> {
-    return this.emitAck(WS_SUBSCRIBE_SESSION_EVENT, { sessionId });
+  async subscribeSession(sessionId: string): Promise<FunnelAck> {
+    const ack = await this.emitAck(WS_SUBSCRIBE_SESSION_EVENT, { sessionId });
+    if (ack.ok) {
+      this.subscribedSessionIds.add(sessionId);
+    }
+    return ack;
   }
 
   sendChat(sessionId: string, text: string): Promise<FunnelAck> {
-    return this.emitAck<ChatSendAck>(WS_CHAT_SEND_EVENT, { sessionId, text });
+    return this.emitUntilDisconnect<ChatSendAck>(WS_CHAT_SEND_EVENT, { sessionId, text });
   }
 
   cancelTurn(sessionId: string, turnId?: string): Promise<FunnelAck> {
@@ -171,17 +182,36 @@ export class SocketFunnelClient implements FunnelPort {
   private emitAck<T extends FunnelAck>(event: string, payload: unknown): Promise<T> {
     const socket = this.socket;
     if (!socket?.connected) {
-      return Promise.resolve({ ok: false, error: 'funnel is not connected' } as T);
+      return Promise.resolve(failedAck<T>('funnel is not connected'));
     }
     return new Promise((resolve) => {
-      socket.timeout(15_000).emit(event, payload, (error: Error | null, ack: T) => {
-        if (error) {
-          resolve({ ok: false, error: error.message } as T);
-          return;
-        }
+      socket.timeout(CONTROL_ACK_TIMEOUT_MS).emit(event, payload, (error: Error | null, ack: T) => {
+        resolve(error ? failedAck<T>(`${event} failed: ${error.message}`) : ack);
+      });
+    });
+  }
+
+  /** chat_send acks only when the whole turn ends, so it gets no timeout; a dropped socket settles it. */
+  private emitUntilDisconnect<T extends FunnelAck>(event: string, payload: unknown): Promise<T> {
+    const socket = this.socket;
+    if (!socket?.connected) {
+      return Promise.resolve(failedAck<T>('funnel is not connected'));
+    }
+    return new Promise((resolve) => {
+      const onDisconnect = () => resolve(failedAck<T>(`funnel disconnected during ${event}`));
+      socket.once('disconnect', onDisconnect);
+      socket.emit(event, payload, (ack: T) => {
+        socket.off('disconnect', onDisconnect);
         resolve(ack);
       });
     });
+  }
+
+  /** The server forgets room membership on reconnect, so every subscription is replayed. */
+  private resubscribe(socket: Socket): void {
+    for (const sessionId of this.subscribedSessionIds) {
+      socket.emit(WS_SUBSCRIBE_SESSION_EVENT, { sessionId });
+    }
   }
 
   private setConnection(state: FunnelConnectionState): void {
@@ -190,4 +220,8 @@ export class SocketFunnelClient implements FunnelPort {
       listener(state);
     }
   }
+}
+
+function failedAck<T extends FunnelAck>(error: string): T {
+  return { ok: false, error } as T;
 }

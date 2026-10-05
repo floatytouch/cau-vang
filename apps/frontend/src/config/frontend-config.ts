@@ -1,40 +1,24 @@
-import { DEFAULT_BACKEND_PORT } from '@noot/shared';
-
 export interface FrontendConfig {
   /** Socket.IO endpoint; empty string means same origin (Vite proxy). */
   wsUrl: string;
-  /** Shared funnel token; NV-10 rejects connects without a matching value. */
-  wsToken: string;
+  /** Shared funnel token; omitted from the handshake when unset (backend running mocks). */
+  wsToken: string | undefined;
 }
 
 export interface FrontendEnv {
   readonly VITE_WS_URL?: string;
-  readonly VITE_WS_TOKEN?: string;
+  readonly VITE_NOOT_WS_TOKEN?: string;
 }
-
-const DEFAULT_WS_TOKEN = 'dev-ws-token';
 
 /** Sole place that reads Vite env for the UI; feature code takes FrontendConfig. */
 export function loadFrontendConfig(env: FrontendEnv = import.meta.env): FrontendConfig {
-  const wsUrl = trimOrDefault(env.VITE_WS_URL, '');
-  const wsToken = trimOrDefault(env.VITE_WS_TOKEN, DEFAULT_WS_TOKEN);
-  if (!wsToken) {
-    throw new Error('VITE_WS_TOKEN must be a non-empty string when set');
-  }
-  if (wsUrl.includes('\0') || wsToken.includes('\0')) {
-    throw new Error('frontend config values must not contain null bytes');
-  }
-  return { wsUrl, wsToken };
+  return {
+    wsUrl: trimmedOrUndefined(env.VITE_WS_URL) ?? '',
+    wsToken: trimmedOrUndefined(env.VITE_NOOT_WS_TOKEN),
+  };
 }
 
-export function defaultBackendHttpOrigin(): string {
-  return `http://localhost:${DEFAULT_BACKEND_PORT}`;
-}
-
-function trimOrDefault(raw: string | undefined, fallback: string): string {
+function trimmedOrUndefined(raw: string | undefined): string | undefined {
   const trimmed = raw?.trim();
-  if (trimmed === undefined || trimmed === '') {
-    return fallback;
-  }
-  return trimmed;
+  return trimmed ? trimmed : undefined;
 }

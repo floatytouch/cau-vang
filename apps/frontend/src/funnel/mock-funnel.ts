@@ -14,6 +14,8 @@ export interface MockFunnelScript {
   /** Delay between scripted events in ms. */
   eventGapMs?: number;
   cancelEndsStream?: boolean;
+  /** When set, chat_send fails with this error after streaming the scripted events. */
+  sendFailure?: string;
 }
 
 interface MockSession {
@@ -138,6 +140,9 @@ export class MockFunnel implements FunnelPort {
       session.history.push({ role: 'assistant', text: assistantText, ts: now() });
     }
     this.activeTurnId = undefined;
+    if (this.script.sendFailure) {
+      return { ok: false, error: this.script.sendFailure };
+    }
     return { ok: true };
   }
 

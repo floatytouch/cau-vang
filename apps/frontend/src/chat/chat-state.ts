@@ -52,7 +52,6 @@ export type ChatAction =
       history: HistoryMessageDto[];
     }
   | { type: 'draft/set'; draft: string }
-  | { type: 'engine/set'; engineId: string; model: string }
   | { type: 'mode/set'; mode: ConversationMode }
   | { type: 'turn/local-user'; text: string }
   | { type: 'turn/streaming'; streaming: boolean }
@@ -101,8 +100,6 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     case 'draft/set':
       return { ...state, draft: action.draft };
-    case 'engine/set':
-      return { ...state, engineId: action.engineId, model: action.model };
     case 'mode/set':
       return { ...state, mode: action.mode };
     case 'turn/local-user':
@@ -115,6 +112,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ],
         turn: undefined,
         streaming: true,
+        choicesConsumed: true,
+        statusMessage: undefined,
       };
     case 'turn/streaming':
       return { ...state, streaming: action.streaming };

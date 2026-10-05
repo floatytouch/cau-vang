@@ -78,26 +78,27 @@ export function ChatPage({ funnel }: ChatPageProps) {
     }
     dispatch({ type: 'turn/local-user', text: trimmed });
     const ack = await funnel.sendChat(state.sessionId, trimmed);
+    dispatch({ type: 'turn/streaming', streaming: false });
     if (!ack.ok) {
-      dispatch({ type: 'turn/streaming', streaming: false });
-      dispatch({ type: 'status/set', message: ack.error ?? 'chat_send failed' });
+      showError(ack.error ?? 'chat_send failed');
     }
   }
 
   async function onStop(): Promise<void> {
     if (!state.sessionId) return;
-    await funnel.cancelTurn(state.sessionId, state.activeTurnId);
+    const ack = await funnel.cancelTurn(state.sessionId, state.activeTurnId);
+    if (!ack.ok) {
+      showError(ack.error ?? 'cancel_turn failed');
+    }
   }
 
   async function onEngineChange(engineId: string, model: string): Promise<void> {
     if (!state.sessionId) return;
-    const historyBefore = state.history;
     const ack = await funnel.setEngine(state.sessionId, engineId, model);
     if (!ack.ok) {
-      dispatch({ type: 'status/set', message: ack.error ?? 'set_engine failed' });
+      showError(ack.error ?? 'set_engine failed');
       return;
     }
-    dispatch({ type: 'engine/set', engineId, model });
     const details = await funnel.getHistory(state.sessionId);
     dispatch({
       type: 'session/loaded',
@@ -105,7 +106,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
       engineId: details.engineId,
       model: details.model,
       mode: details.mode,
-      history: details.history.length > 0 ? details.history : historyBefore,
+      history: details.history,
     });
   }
 
@@ -113,6 +114,16 @@ export function ChatPage({ funnel }: ChatPageProps) {
     if (!state.sessionId) return;
     const next = await funnel.setMode(state.sessionId, mode);
     dispatch({ type: 'mode/set', mode: next });
+  }
+
+  function showError(message: string): void {
+    dispatch({ type: 'status/set', message });
+  }
+
+  function reportFailure(action: Promise<void>): void {
+    action.catch((error: unknown) =>
+      showError(error instanceof Error ? error.message : String(error)),
+    );
   }
 
   async function onChoice(option: ChoiceOption): Promise<void> {
@@ -138,12 +149,12 @@ export function ChatPage({ funnel }: ChatPageProps) {
             engineId={state.engineId}
             model={state.model}
             disabled={!state.sessionId || state.streaming}
-            onChange={(engineId, model) => void onEngineChange(engineId, model)}
+            onChange={(engineId, model) => reportFailure(onEngineChange(engineId, model))}
           />
           <ModeToggle
             mode={state.mode}
             disabled={!state.sessionId}
-            onChange={(mode) => void onModeChange(mode)}
+            onChange={(mode) => reportFailure(onModeChange(mode))}
           />
         </div>
 
@@ -187,7 +198,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
             prompt={state.choicesPrompt}
             options={state.choices}
             disabled={state.choicesConsumed || state.streaming}
-            onSelect={(option) => void onChoice(option)}
+            onSelect={(option) => reportFailure(onChoice(option))}
           />
         </div>
 
@@ -201,7 +212,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
           className="noot-composer"
           onSubmit={(event) => {
             event.preventDefault();
-            void sendText(state.draft);
+            reportFailure(sendText(state.draft));
           }}
         >
           <label className="visually-hidden" htmlFor="chat-draft">
@@ -216,7 +227,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                void sendText(state.draft);
+                reportFailure(sendText(state.draft));
               }
             }}
           />
@@ -225,7 +236,7 @@ export function ChatPage({ funnel }: ChatPageProps) {
             className="noot-btn"
             data-variant="danger"
             disabled={!state.streaming}
-            onClick={() => void onStop()}
+            onClick={() => reportFailure(onStop())}
           >
             Stop
           </button>
