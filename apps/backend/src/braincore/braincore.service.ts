@@ -11,7 +11,7 @@ import {
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import type { EngineAdapter, NootEvent } from '@noot/shared';
+import type { EngineAdapter, EngineSummary, NootEvent, SessionSummaryDto } from '@noot/shared';
 import {
   DEFAULT_BRAINCORE_DATA_DIR,
   DEFAULT_IDENTITY_CONFIG_DIR,
@@ -32,7 +32,6 @@ import {
 import { SessionManager } from './session/session-manager.js';
 import {
   STORED_ROLE_INTERNAL,
-  type SessionSummary,
   type StoredMessage,
   type StoredSession,
 } from './session/session-types.js';
@@ -68,6 +67,7 @@ export class BraincoreService extends EventEmitter {
   private identity: IdentityBuilder | undefined;
   private systemPrompt: string | undefined;
   private readonly activeTurns = new Map<string, EngineAdapter>();
+  private readonly activeTurnBySession = new Map<string, string>();
 
   constructor(@Optional() @Inject(BRAINCORE_OPTIONS) options: BraincoreServiceOptions | null) {
     super();
@@ -104,8 +104,18 @@ export class BraincoreService extends EventEmitter {
     return identity.getBotName();
   }
 
-  listSessions(): SessionSummary[] {
-    return this.sessions.listSessions();
+  listSessions(): SessionSummaryDto[] {
+    return this.sessions.listSessions().map((session) => ({
+      ...session,
+      mode: this.getMode(session.id),
+    }));
+  }
+
+  listEngines(): EngineSummary[] {
+    return this.engines.listIds().map((id) => {
+      const adapter = this.engines.get(id);
+      return { id: adapter.id, capabilities: adapter.capabilities };
+    });
   }
 
   async createSession(engineId: string, model: string, title?: string): Promise<StoredSession> {
@@ -115,7 +125,11 @@ export class BraincoreService extends EventEmitter {
 
   async deleteSession(sessionId: string): Promise<boolean> {
     this.pendingApprovals.clear(sessionId);
-    return this.sessions.deleteSession(sessionId);
+    const deleted = await this.sessions.deleteSession(sessionId);
+    if (deleted) {
+      this.activeTurnBySession.delete(sessionId);
+    }
+    return deleted;
   }
 
   getHistory(sessionId: string): StoredMessage[] {
@@ -179,6 +193,7 @@ export class BraincoreService extends EventEmitter {
       const engineText = `${planNoteFor(session.mode)}${text}`;
       const turnId = randomUUID();
       this.activeTurns.set(turnId, adapter);
+      this.activeTurnBySession.set(sessionId, turnId);
       try {
         const assistantText = await this.streamTurn({
           adapter,
@@ -201,6 +216,9 @@ export class BraincoreService extends EventEmitter {
         }
       } finally {
         this.activeTurns.delete(turnId);
+        if (this.activeTurnBySession.get(sessionId) === turnId) {
+          this.activeTurnBySession.delete(sessionId);
+        }
       }
       return turnId;
     } finally {
@@ -210,6 +228,21 @@ export class BraincoreService extends EventEmitter {
 
   async cancelTurn(turnId: string): Promise<void> {
     await this.activeTurns.get(turnId)?.cancel(turnId);
+  }
+
+  /** Cancels the session's running turn; a turnId from another session or an older turn is refused. */
+  async cancelSessionTurn(sessionId: string, turnId?: string): Promise<void> {
+    if (!this.sessions.hasSession(sessionId)) {
+      throw new Error(`Unknown session ${sessionId}`);
+    }
+    const activeTurnId = this.activeTurnBySession.get(sessionId);
+    if (!activeTurnId) {
+      return;
+    }
+    if (turnId !== undefined && turnId !== activeTurnId) {
+      throw new Error(`Turn ${turnId} is not the running turn of session ${sessionId}`);
+    }
+    await this.cancelTurn(activeTurnId);
   }
 
   private async streamTurn(params: Parameters<typeof runConversationTurn>[0]): Promise<string> {

@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light;
+  --noot-bg: #f3f6f4;
+  --noot-bg-elevated: #ffffff;
+  --noot-ink: #14201a;
+  --noot-ink-muted: #4d5c54;
+  --noot-accent: #0f6b4c;
+  --noot-accent-ink: #ffffff;
+  --noot-border: #c9d5ce;
+  --noot-danger: #9b2c2c;
+  --noot-thinking: #e8f2ec;
+  --noot-tool: #eef2f7;
+  --noot-shadow: 0 1px 0 rgb(20 32 26 / 6%);
+  --noot-radius: 12px;
+  --noot-font: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --noot-display: 'Fraunces', Georgia, serif;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --noot-bg: #0f1613;
+  --noot-bg-elevated: #18221d;
+  --noot-ink: #e7eee9;
+  --noot-ink-muted: #9aaba2;
+  --noot-accent: #3dbf8f;
+  --noot-accent-ink: #052015;
+  --noot-border: #2c3a33;
+  --noot-danger: #e85d5d;
+  --noot-thinking: #1c2a23;
+  --noot-tool: #1a2430;
+  --noot-shadow: 0 1px 0 rgb(0 0 0 / 35%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--noot-font);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgb(15 107 76 / 12%), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgb(45 90 140 / 10%), transparent 55%),
+    var(--noot-bg);
+  color: var(--noot-ink);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--noot-accent);
+  outline-offset: 2px;
+}

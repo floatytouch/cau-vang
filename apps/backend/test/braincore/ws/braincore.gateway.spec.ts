@@ -7,7 +7,9 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
   WS_CHAT_SEND_EVENT,
+  WS_LIST_ENGINES_EVENT,
   WS_NOOT_EVENT,
+  WS_SET_MODE_EVENT,
   WS_SUBSCRIBE_SESSION_EVENT,
   type NootEvent,
 } from '@noot/shared';
@@ -105,11 +107,14 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       ok: true,
     });
 
-    expect(
-      await client.emit(WS_CHAT_SEND_EVENT, { sessionId: session.id, text: 'hi there' }),
-    ).toEqual({
-      ok: true,
-    });
+    const sendAck = (await client.emit(WS_CHAT_SEND_EVENT, {
+      sessionId: session.id,
+      text: 'hi there',
+    })) as { ok: boolean; turnId?: string };
+    expect(sendAck.ok).toBe(true);
+    expect(sendAck.turnId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
 
     const payloads = client.events
       .filter((event) => event.name === WS_NOOT_EVENT)
@@ -140,4 +145,28 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       ok: false,
     });
   });
+
+  it('lists registered engines and stores Plan/Auto mode per session', async () => {
+    const enginesAck = (await client.emit(WS_LIST_ENGINES_EVENT, {})) as {
+      ok: boolean;
+      engines: { id: string }[];
+    };
+    expect(enginesAck.ok).toBe(true);
+    expect(enginesAck.engines.map((engine) => engine.id).sort()).toEqual([
+      'mock',
+      'mock-harness',
+    ]);
+
+    const session = await app.get(BraincoreService).createSession(MOCK_ENGINE_ID, 'mock-model');
+    expect(await client.emit(WS_SET_MODE_EVENT, { sessionId: session.id, mode: 'plan' })).toEqual({
+      ok: true,
+      mode: 'plan',
+    });
+    expect(await client.emit(WS_SET_MODE_EVENT, { sessionId: session.id, mode: 'nope' })).toMatchObject(
+      {
+        ok: false,
+      },
+    );
+  });
 });
+
