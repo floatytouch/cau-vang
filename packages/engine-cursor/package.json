@@ -1,0 +1,31 @@
+{
+  "name": "@noot/engine-cursor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "yarn workspace @noot/shared build && tsc -p tsconfig.build.json",
+    "test": "yarn workspace @noot/shared build && tsc -p tsconfig.json && vitest run"
+  },
+  "dependencies": {
+    "@cursor/sdk": "1.0.35",
+    "@noot/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}
