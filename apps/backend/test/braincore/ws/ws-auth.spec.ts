@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WS_AUTH_TOKEN_KEY } from '@noot/shared';
-import { handshakeTokenMatches, readHandshakeToken } from './ws-auth.js';
+import { handshakeTokenMatches, readHandshakeToken } from '../../../src/braincore/ws/ws-auth.js';
 
 function fakeSocket(handshake: {
   auth: object;

@@ -7,8 +7,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { WS_SUBSCRIBE_SESSION_EVENT } from '@noot/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../../app.module.js';
-import { RawSocketIoClient } from '../testing/raw-socket-io-client.js';
+import { AppModule } from '../../../src/app.module.js';
+import { RawSocketIoClient } from '../../../src/braincore/testing/raw-socket-io-client.js';
 
 const ENV_KEYS = [
   'NOOT_BRAINCORE_DATA_DIR',
@@ -22,7 +22,7 @@ describe('BraincoreGateway in mock-engine dev mode without NOOT_WS_TOKEN', () =>
   const savedEnv = new Map<string, string | undefined>();
 
   beforeAll(async () => {
-    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-10-mock-dev-'));
+    dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-mock-dev-gateway-'));
     for (const key of ENV_KEYS) {
       savedEnv.set(key, process.env[key]);
     }

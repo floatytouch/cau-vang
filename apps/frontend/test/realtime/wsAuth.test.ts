@@ -1,6 +1,6 @@
 import { buildWsAuth, WS_AUTH_TOKEN_KEY } from '@noot/shared';
 import { describe, expect, it } from 'vitest';
-import { frontendWsAuth, readFrontendWsToken } from './wsAuth.js';
+import { frontendWsAuth, readFrontendWsToken } from '../../src/realtime/wsAuth.js';
 
 describe('frontend WS auth helpers', () => {
   it('reads a trimmed VITE_NOOT_WS_TOKEN', () => {
