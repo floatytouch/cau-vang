@@ -8,11 +8,11 @@ This package never reads `process.env`. The Nest registration layer (when BrainC
 wires the adapter) resolves the host environment through `ConfigService` and passes
 every runtime value as constructor options:
 
-| Option | Expected Nest / app source | Purpose |
-| --- | --- | --- |
-| `subprocessEnv` | `ConfigService`-resolved host env (typically `process.env` at the Nest boundary) | Environment inherited by the Claude CLI subprocess. `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are stripped so the Max plan OAuth login in `~/.claude` is used. |
-| `queryFactory` | tests or DI override | SDK `query` entry point (default: real SDK). |
-| `sessionHandles` | DI singleton | Maps brain session ids to Claude `resume` ids. |
+| Option           | Expected Nest / app source                                                       | Purpose                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subprocessEnv`  | `ConfigService`-resolved host env (typically `process.env` at the Nest boundary) | Environment inherited by the Claude CLI subprocess. `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are stripped so the Max plan OAuth login in `~/.claude` is used. |
+| `queryFactory`   | tests or DI override                                                             | SDK `query` entry point (default: real SDK).                                                                                                                        |
+| `sessionHandles` | DI singleton                                                                     | Maps brain session ids to Claude `resume` ids.                                                                                                                      |
 
 ```ts
 import { ClaudeEngineAdapter } from '@noot/engine-claude';

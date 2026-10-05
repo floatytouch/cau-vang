@@ -3,10 +3,7 @@ import type { EngineSession, NootEvent, ToolBridge, TurnOptions } from '@noot/sh
 import { isNootEvent } from '@noot/shared';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  ClaudeEngineAdapter,
-  type ClaudeEngineAdapterOptions,
-} from './claude-engine-adapter.js';
+import { ClaudeEngineAdapter, type ClaudeEngineAdapterOptions } from './claude-engine-adapter.js';
 import type { ClaudeQueryFactory } from './claude-query-factory.js';
 import { SessionHandleStore } from './session-handle-store.js';
 
@@ -271,11 +268,7 @@ describe('ClaudeEngineAdapter failures', () => {
       throw new Error('process exited with code 1');
     });
     const events = await collect(
-      createAdapter({ queryFactory: fake.factory }).startTurn(
-        SESSION,
-        { text: 'x' },
-        OPTIONS,
-      ),
+      createAdapter({ queryFactory: fake.factory }).startTurn(SESSION, { text: 'x' }, OPTIONS),
     );
     expectWellFormedTurn(events, 'failed');
     expect(fake.close).toHaveBeenCalledTimes(1);

@@ -46,9 +46,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
 
   constructor(options: ClaudeEngineAdapterOptions) {
     if (options.subprocessEnv == null || typeof options.subprocessEnv !== 'object') {
-      throw new Error(
-        'ClaudeEngineAdapter requires subprocessEnv from the app config layer',
-      );
+      throw new Error('ClaudeEngineAdapter requires subprocessEnv from the app config layer');
     }
     this.queryFactory = options.queryFactory ?? defaultClaudeQueryFactory;
     this.sessionHandles = options.sessionHandles ?? new SessionHandleStore();
@@ -72,12 +70,7 @@ export class ClaudeEngineAdapter implements EngineAdapter {
     try {
       claudeQuery = this.queryFactory({
         prompt: input.text,
-        options: buildQueryOptions(
-          options,
-          abortController,
-          resumeId,
-          this.subprocessEnv,
-        ),
+        options: buildQueryOptions(options, abortController, resumeId, this.subprocessEnv),
       });
       for await (const message of claudeQuery) {
         this.trackSession(session.sessionId, message, state);
