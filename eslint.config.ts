@@ -20,8 +20,27 @@ export default defineConfig(
         'error',
         {
           selector: 'variable',
+          format: ['camelCase', 'UPPER_CASE', 'PascalCase'],
+          leadingUnderscore: 'allow',
+        },
+        {
+          selector: 'variable',
+          modifiers: ['destructured'],
+          format: null,
+        },
+        {
+          selector: 'variable',
           modifiers: ['const', 'exported'],
           format: ['UPPER_CASE', 'PascalCase'],
+        },
+        {
+          selector: 'function',
+          format: ['camelCase', 'PascalCase'],
+        },
+        {
+          selector: 'parameter',
+          format: ['camelCase'],
+          leadingUnderscore: 'allow',
         },
         {
           selector: 'typeLike',
