@@ -47,7 +47,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         DEFAULT_MAX_CHAT_TEXT_LENGTH,
         'NOOT_BRAINCORE_MAX_CHAT_TEXT_LENGTH',
       ),
-      mockEngines: env.NOOT_BRAINCORE_MOCK_ENGINES?.trim() === '1',
+      mockEngines: resolveFlag(env.NOOT_BRAINCORE_MOCK_ENGINES, 'NOOT_BRAINCORE_MOCK_ENGINES'),
     },
   };
 }
@@ -72,4 +72,15 @@ function resolvePositiveInt(raw: string | undefined, fallback: number, name: str
     throw new Error(`${name} must be a positive integer, got ${JSON.stringify(raw)}`);
   }
   return value;
+}
+
+function resolveFlag(raw: string | undefined, name: string): boolean {
+  const trimmed = raw?.trim();
+  if (trimmed === undefined || trimmed === '' || trimmed === '0') {
+    return false;
+  }
+  if (trimmed === '1') {
+    return true;
+  }
+  throw new Error(`${name} must be 0 or 1, got ${JSON.stringify(raw)}`);
 }

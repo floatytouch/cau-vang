@@ -5,12 +5,15 @@ import { isNootEvent, type EngineAdapter, type NootEvent } from '@noot/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_IDENTITY_CONFIG_DIR } from '../config/app-config.js';
 import { BraincoreService, BRAINCORE_EVENT_CHANNEL } from './braincore.service.js';
+import { IDENTITY_CONFIG_FILE, renderBotNameClause } from './identity/identity-builder.js';
 import type { StoredSession } from './session/session-types.js';
 import {
   MOCK_ENGINE_ID,
   MOCK_HARNESS_ENGINE_ID,
   MOCK_USE_ECHO_TOOL_MARKER,
 } from './testing/mock-engine-adapter.js';
+
+const RENAME_ANCHOR = 'You are Noops.';
 
 async function startService(dataDir: string): Promise<BraincoreService> {
   const service = new BraincoreService({
@@ -126,16 +129,13 @@ describe('BrainCore funnel', () => {
     ]);
   });
 
-  it('exposes a user-settable botName that reshapes the system prompt', async () => {
+  it('exposes a user-settable botName that reshapes the system prompt sent to the engine', async () => {
     expect(service.getBotName()).toBe('Noops');
     const identityDir = await mkdtemp(path.join(os.tmpdir(), 'noot-NV-3-rename-'));
     try {
       await writeFile(
-        path.join(identityDir, 'identity.json'),
-        JSON.stringify({
-          baseSystemPromptAnchor: 'You are Noops.',
-          botName: 'Noops',
-        }),
+        path.join(identityDir, IDENTITY_CONFIG_FILE),
+        JSON.stringify({ baseSystemPromptAnchor: RENAME_ANCHOR, botName: 'Noops' }),
       );
       const renamed = new BraincoreService({
         dataDir: tempDataDir,
@@ -143,8 +143,25 @@ describe('BrainCore funnel', () => {
         registerMocks: true,
       });
       await renamed.initialize();
+      const seenPrompts: string[] = [];
+      const engine = renamed.engines.get(MOCK_ENGINE_ID);
+      const originalStart = engine.startTurn.bind(engine);
+      (engine as { startTurn: EngineAdapter['startTurn'] }).startTurn = (
+        engineSession,
+        input,
+        options,
+      ) => {
+        seenPrompts.push(options.systemPrompt);
+        return originalStart(engineSession, input, options);
+      };
+      const session = await renamed.createSession(MOCK_ENGINE_ID, 'mock-model');
+
+      await renamed.sendUserMessage(session.id, 'before rename');
       await expect(renamed.setBotName('Nốt')).resolves.toBe('Nốt');
+      await renamed.sendUserMessage(session.id, 'after rename');
+
       expect(renamed.getBotName()).toBe('Nốt');
+      expect(seenPrompts).toEqual([RENAME_ANCHOR, RENAME_ANCHOR + renderBotNameClause('Nốt')]);
     } finally {
       await rm(identityDir, { recursive: true, force: true });
     }

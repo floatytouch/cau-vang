@@ -39,10 +39,15 @@ describe('loadAppConfig', () => {
     expect(config.braincore.mockEngines).toBe(true);
   });
 
+  it('accepts 0 as mock engines off', () => {
+    expect(loadAppConfig({ NOOT_BRAINCORE_MOCK_ENGINES: '0' }).braincore.mockEngines).toBe(false);
+  });
+
   it.each([
     [{ NOOT_BRAINCORE_LIVE_SESSION_CAP: '0' }, /LIVE_SESSION_CAP/],
     [{ NOOT_BRAINCORE_MAX_CHAT_TEXT_LENGTH: 'nope' }, /MAX_CHAT_TEXT_LENGTH/],
     [{ PORT: 'abc' }, /Invalid PORT/],
+    [{ NOOT_BRAINCORE_MOCK_ENGINES: 'true' }, /MOCK_ENGINES must be 0 or 1/],
   ])('fails closed on bad env %#', (env, message) => {
     expect(() => loadAppConfig(env)).toThrow(message);
   });

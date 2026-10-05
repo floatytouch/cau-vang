@@ -29,10 +29,6 @@ export class IdentityBuilder {
     return this.config.botName;
   }
 
-  getConfig(): Readonly<IdentityConfig> {
-    return this.config;
-  }
-
   async setBotName(botName: string): Promise<void> {
     this.config = { ...this.config, botName: normalizeBotName(botName) };
     await this.persist();
