@@ -7,7 +7,7 @@ import {
   type ConversationMode,
 } from '@noot/shared';
 
-/** BrainCore keeps WORK_MODE_* names for the persistence/gate layer; wire literals live only on shared ConversationMode. */
+// Gate/persistence keeps WORK_MODE_* so this layer does not read as shared wire names.
 export const WORK_MODE_AUTO = CONVERSATION_MODE_AUTO;
 export const WORK_MODE_PLAN = CONVERSATION_MODE_PLAN;
 export const WORK_MODES = CONVERSATION_MODES;
