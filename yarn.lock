@@ -340,6 +340,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bufbuild/protobuf@npm:1.10.0":
+  version: 1.10.0
+  resolution: "@bufbuild/protobuf@npm:1.10.0"
+  checksum: 10c0/5487b9c2e63846d0e3bde4d025cc77ae44a22166a5d6c184df0da5581e1ab6d66dd115af0ccad814576dcd011bb1b93989fb0ac1eb4ae452979bb8b186693ba0
+  languageName: node
+  linkType: hard
+
 "@cacheable/memory@npm:^2.2.0":
   version: 2.2.0
   resolution: "@cacheable/memory@npm:2.2.0"
@@ -359,6 +366,25 @@ __metadata:
     hashery: "npm:^1.5.1"
     keyv: "npm:^5.6.0"
   checksum: 10c0/99e901accd71eeb0bce91484d6c66d7ef2c731b541561eb5dc9ea7fed78bdc0b65e5dd2a80edde50191143bcfc5f238fc4742475b32e82d43b43eea224038e35
+  languageName: node
+  linkType: hard
+
+"@connectrpc/connect-web@npm:^1.6.1":
+  version: 1.7.0
+  resolution: "@connectrpc/connect-web@npm:1.7.0"
+  peerDependencies:
+    "@bufbuild/protobuf": ^1.10.0
+    "@connectrpc/connect": 1.7.0
+  checksum: 10c0/3ad4279209a587df7cec1ea0b905058069a73ba23cd271750fac2b3a9e20ee3fd6451fcf27d9920f4f4bb28d8f99dfc6a59a6f8d27c431720cf9134669395b1b
+  languageName: node
+  linkType: hard
+
+"@connectrpc/connect@npm:^1.6.1":
+  version: 1.7.0
+  resolution: "@connectrpc/connect@npm:1.7.0"
+  peerDependencies:
+    "@bufbuild/protobuf": ^1.10.0
+  checksum: 10c0/58b6835e966fa589307b7f14b8821d54e5fec92fcb9bb64a8af24076d3a6534b8a80dffdcb71455514772ee53b7ea49429c031602eb19d5ecba2dad4c3eb7a10
   languageName: node
   linkType: hard
 
@@ -417,6 +443,80 @@ __metadata:
   version: 4.0.2
   resolution: "@csstools/css-tokenizer@npm:4.0.2"
   checksum: 10c0/748b42450064cca6a54d2bb8a719cb765c6433b8988ed8855f39c9814b8ef30c4daab235ffee9dacb0388916d6e250ec6bee454e8353d06161228e129e4272ae
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk-darwin-arm64@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk-darwin-arm64@npm:1.0.35"
+  bin:
+    rg: bin/rg
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk-darwin-x64@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk-darwin-x64@npm:1.0.35"
+  bin:
+    rg: bin/rg
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk-linux-arm64@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk-linux-arm64@npm:1.0.35"
+  bin:
+    rg: bin/rg
+  conditions: os=linux & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk-linux-x64@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk-linux-x64@npm:1.0.35"
+  bin:
+    rg: bin/rg
+  conditions: os=linux & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk-win32-x64@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk-win32-x64@npm:1.0.35"
+  bin:
+    rg: bin/rg.exe
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@cursor/sdk@npm:1.0.35":
+  version: 1.0.35
+  resolution: "@cursor/sdk@npm:1.0.35"
+  dependencies:
+    "@bufbuild/protobuf": "npm:1.10.0"
+    "@connectrpc/connect": "npm:^1.6.1"
+    "@connectrpc/connect-web": "npm:^1.6.1"
+    "@cursor/sdk-darwin-arm64": "npm:1.0.35"
+    "@cursor/sdk-darwin-x64": "npm:1.0.35"
+    "@cursor/sdk-linux-arm64": "npm:1.0.35"
+    "@cursor/sdk-linux-x64": "npm:1.0.35"
+    "@cursor/sdk-win32-x64": "npm:1.0.35"
+    "@statsig/js-client": "npm:3.31.0"
+    zod: "npm:^3.25.0"
+  dependenciesMeta:
+    "@cursor/sdk-darwin-arm64":
+      optional: true
+    "@cursor/sdk-darwin-x64":
+      optional: true
+    "@cursor/sdk-linux-arm64":
+      optional: true
+    "@cursor/sdk-linux-x64":
+      optional: true
+    "@cursor/sdk-win32-x64":
+      optional: true
+  checksum: 10c0/ea662bac9565543a036aeb5f5ff1084b7fbd57a1acdf3b5831d7389e02f1f079e71ae4ba210bd45a5c81e076b974959871ce22a5bebaafd11b05cb3e74a704bc
   languageName: node
   linkType: hard
 
@@ -853,6 +953,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noot/engine-cursor@workspace:packages/engine-cursor":
+  version: 0.0.0-use.local
+  resolution: "@noot/engine-cursor@workspace:packages/engine-cursor"
+  dependencies:
+    "@cursor/sdk": "npm:1.0.35"
+    "@noot/shared": "workspace:*"
+    "@types/node": "npm:24.19.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.3.2"
+    vitest: "npm:5.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@noot/frontend@workspace:apps/frontend":
   version: 0.0.0-use.local
   resolution: "@noot/frontend@workspace:apps/frontend"
@@ -1029,6 +1142,22 @@ __metadata:
   version: 1.1.0
   resolution: "@standard-schema/spec@npm:1.1.0"
   checksum: 10c0/d90f55acde4b2deb983529c87e8025fa693de1a5e8b49ecc6eb84d1fd96328add0e03d7d551442156c7432fd78165b2c26ff561b970a9a881f046abb78d6a526
+  languageName: node
+  linkType: hard
+
+"@statsig/client-core@npm:3.31.0":
+  version: 3.31.0
+  resolution: "@statsig/client-core@npm:3.31.0"
+  checksum: 10c0/11988ba4f4c16fc189f0da5a8297c0cb774485efbc50a80ba2d9a58421257567c4266f942a7b7da2453187a1f4b0a5f8a25a97ecb215d2f483cfb4f5a2dbee96
+  languageName: node
+  linkType: hard
+
+"@statsig/js-client@npm:3.31.0":
+  version: 3.31.0
+  resolution: "@statsig/js-client@npm:3.31.0"
+  dependencies:
+    "@statsig/client-core": "npm:3.31.0"
+  checksum: 10c0/1e0d0629572ddad1a610300bfba8b197fdb02366db71ae2d23dcbaf341c3815be13ff7319330ce33ccb5c4b67bee7298a05338807878a983be6c4026ce6db76e
   languageName: node
   linkType: hard
 
@@ -4638,5 +4767,12 @@ __metadata:
   version: 4.6.5
   resolution: "zod@npm:4.6.5"
   checksum: 10c0/32eb6c5e98becbe045675b2141c3611451c16ba567f9779231d79af41c4d651ca1c22f154aef7e6c6e77b929f23e43f1154ca05b82e119e922353725d6776af5
+  languageName: node
+  linkType: hard
+
+"zod@npm:^3.25.0":
+  version: 3.25.76
+  resolution: "zod@npm:3.25.76"
+  checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c
   languageName: node
   linkType: hard
