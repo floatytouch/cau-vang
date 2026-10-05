@@ -1,7 +1,11 @@
 import { Module, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/app-config.js';
-import { BRAINCORE_OPTIONS, BraincoreService, type BraincoreServiceOptions } from './braincore.service.js';
+import {
+  BRAINCORE_OPTIONS,
+  BraincoreService,
+  type BraincoreServiceOptions,
+} from './braincore.service.js';
 import { BraincoreGateway } from './ws/braincore.gateway.js';
 
 @Module({

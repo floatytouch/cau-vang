@@ -95,8 +95,7 @@ function parseIdentityConfig(value: unknown, configPath: string): IdentityConfig
   }
   return {
     baseSystemPromptAnchor: anchor as string,
-    botName:
-      botNameRaw === undefined ? DEFAULT_BOT_NAME : normalizeBotName(botNameRaw as string),
+    botName: botNameRaw === undefined ? DEFAULT_BOT_NAME : normalizeBotName(botNameRaw as string),
     memoryContextFile: memoryFile as string | undefined,
   };
 }
