@@ -70,9 +70,7 @@ export class LumoProxyClient {
 
       const rawBody = await response.text();
       if (!response.ok) {
-        throw new LumoApiError(
-          `${url} answered HTTP ${response.status}: ${shortDetail(rawBody)}`,
-        );
+        throw new LumoApiError(`${url} answered HTTP ${response.status}: ${shortDetail(rawBody)}`);
       }
 
       let body: unknown;

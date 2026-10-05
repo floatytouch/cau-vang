@@ -8,9 +8,7 @@ export interface LumoClientConfig {
   apiKey: string;
 }
 
-export function readLumoClientConfig(
-  env: NodeJS.ProcessEnv = process.env,
-): LumoClientConfig {
+export function readLumoClientConfig(env: NodeJS.ProcessEnv = process.env): LumoClientConfig {
   const baseUrl = (env[LUMO_BASE_URL_ENV] ?? '').trim().replace(/\/$/, '') || DEFAULT_LUMO_BASE_URL;
   const apiKey = (env[LUMO_API_KEY_ENV] ?? '').trim();
   if (!apiKey) {

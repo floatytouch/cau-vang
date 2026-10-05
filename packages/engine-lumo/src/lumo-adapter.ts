@@ -6,7 +6,11 @@ import type {
   TurnInput,
   TurnOptions,
 } from '@noot/shared';
-import { LumoCredentialsError, readLumoClientConfig, type LumoClientConfig } from './lumo-config.js';
+import {
+  LumoCredentialsError,
+  readLumoClientConfig,
+  type LumoClientConfig,
+} from './lumo-config.js';
 import { LumoApiError, LumoProxyClient } from './lumo-proxy-client.js';
 import { buildLumoChatMessages } from './recap-window.js';
 

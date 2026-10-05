@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ConversationMessage } from '@noot/shared';
-import { HISTORY_CHAR_BUDGET, HISTORY_MESSAGE_CHARS, HISTORY_MESSAGE_LIMIT } from './recap-budget.js';
 import {
-  buildLumoChatMessages,
-  historyWindow,
-  totalHistoryCharsInWindow,
-} from './recap-window.js';
+  HISTORY_CHAR_BUDGET,
+  HISTORY_MESSAGE_CHARS,
+  HISTORY_MESSAGE_LIMIT,
+} from './recap-budget.js';
+import { buildLumoChatMessages, historyWindow, totalHistoryCharsInWindow } from './recap-window.js';
 
 function userMessage(text: string): ConversationMessage {
   return { role: 'user', text };
