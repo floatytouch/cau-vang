@@ -121,7 +121,7 @@ describe('SocketFunnelClient', () => {
     expect(withToken.handshakeAuth).toEqual({ token: 'secret-token' });
     sockets.length = 0;
     const [, withoutToken] = await connectedClient(undefined);
-    expect(withoutToken.handshakeAuth).toEqual({});
+    expect(withoutToken.handshakeAuth).toStrictEqual({});
   });
 
   it('replays session subscriptions after a reconnect', async () => {
