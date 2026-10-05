@@ -46,9 +46,15 @@ export const booleanValue: FieldRule = {
   expected: 'a boolean',
 };
 
+const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
 export const isoTimestamp: FieldRule = {
-  check: (value) => typeof value === 'string' && !Number.isNaN(Date.parse(value)),
-  expected: 'an ISO-8601 timestamp',
+  // Date.parse alone accepts loose strings like "1"; the pattern pins the format, Date.parse the calendar.
+  check: (value) =>
+    typeof value === 'string' &&
+    ISO_DATE_TIME_PATTERN.test(value) &&
+    !Number.isNaN(Date.parse(value)),
+  expected: 'an ISO-8601 timestamp with timezone',
 };
 
 export const presentValue: FieldRule = {

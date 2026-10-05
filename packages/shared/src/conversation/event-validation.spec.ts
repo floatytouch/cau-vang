@@ -139,6 +139,26 @@ describe('parseNootEvent', () => {
     );
   });
 
+  it.each([
+    'yesterday',
+    '1',
+    'Jan 1 2026',
+    '2026-01-01',
+    '2026-01-01T00:00:00',
+    '2026-13-01T00:00:00Z',
+  ])('rejects a loose emittedAt %j', (emittedAt) => {
+    expectRejected(
+      withField(VALID_EVENTS['text_delta']!, 'emittedAt', emittedAt),
+      'emittedAt must be an ISO-8601 timestamp',
+    );
+  });
+
+  it('accepts an emittedAt with a numeric offset', () => {
+    expect(
+      isNootEvent(withField(VALID_EVENTS['text_delta']!, 'emittedAt', '2026-01-01T07:00:00+07:00')),
+    ).toBe(true);
+  });
+
   it('rejects a delta without text', () => {
     expectRejected(
       withoutField(VALID_EVENTS['thinking_delta']!, 'text'),
