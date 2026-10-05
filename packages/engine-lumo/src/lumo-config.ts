@@ -14,8 +14,7 @@ export interface LumoClientConfigInput {
 }
 
 export function resolveLumoClientConfig(input: LumoClientConfigInput): LumoClientConfig {
-  const baseUrl =
-    (input.baseUrl ?? '').trim().replace(/\/+$/, '') || DEFAULT_LUMO_BASE_URL;
+  const baseUrl = (input.baseUrl ?? '').trim().replace(/\/+$/, '') || DEFAULT_LUMO_BASE_URL;
   const apiKey = (input.apiKey ?? '').trim();
   if (!apiKey) {
     throw new LumoCredentialsError(

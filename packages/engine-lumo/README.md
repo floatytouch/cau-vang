@@ -9,15 +9,15 @@ budget before each call.
 This package never reads `process.env`. The Nest host resolves runtime values
 through `ConfigService` and passes them into `createLumoAdapter(...)`.
 
-| Option | Source in the Nest app | Default inside this package |
-| --- | --- | --- |
-| `apiKey` | `ConfigService` key `LUMO_API_KEY` (exported as `LUMO_API_KEY_ENV`) | none -- missing/blank fails the turn with `missing_credentials` |
-| `baseUrl` | `ConfigService` key `LUMO_BASE_URL` (exported as `LUMO_BASE_URL_ENV`) | `http://localhost:3003/v1` |
-| `budgets.charBudget` | Nest config / feature options | `24000` (`HISTORY_CHAR_BUDGET`) |
-| `budgets.messageLimit` | Nest config / feature options | `40` (`HISTORY_MESSAGE_LIMIT`) |
-| `budgets.messageChars` | Nest config / feature options | `4000` (`HISTORY_MESSAGE_CHARS`) |
-| `requestTimeoutMs` | Nest config / feature options | `300000` |
-| `client` | tests / custom HTTP injection | built from `apiKey` + `baseUrl` |
+| Option                 | Source in the Nest app                                                | Default inside this package                                     |
+| ---------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `apiKey`               | `ConfigService` key `LUMO_API_KEY` (exported as `LUMO_API_KEY_ENV`)   | none -- missing/blank fails the turn with `missing_credentials` |
+| `baseUrl`              | `ConfigService` key `LUMO_BASE_URL` (exported as `LUMO_BASE_URL_ENV`) | `http://localhost:3003/v1`                                      |
+| `budgets.charBudget`   | Nest config / feature options                                         | `24000` (`HISTORY_CHAR_BUDGET`)                                 |
+| `budgets.messageLimit` | Nest config / feature options                                         | `40` (`HISTORY_MESSAGE_LIMIT`)                                  |
+| `budgets.messageChars` | Nest config / feature options                                         | `4000` (`HISTORY_MESSAGE_CHARS`)                                |
+| `requestTimeoutMs`     | Nest config / feature options                                         | `300000`                                                        |
+| `client`               | tests / custom HTTP injection                                         | built from `apiKey` + `baseUrl`                                 |
 
 ```ts
 import { createLumoAdapter } from '@noot/engine-lumo';

@@ -12,10 +12,7 @@ import {
   type LumoClientConfigInput,
 } from './lumo-config.js';
 import { LumoApiError, LumoProxyClient } from './lumo-proxy-client.js';
-import {
-  resolveLumoRecapBudgets,
-  type LumoRecapBudgets,
-} from './recap-budget.js';
+import { resolveLumoRecapBudgets, type LumoRecapBudgets } from './recap-budget.js';
 import { buildLumoChatMessages } from './recap-window.js';
 
 export const LUMO_ENGINE_ID = 'lumo';

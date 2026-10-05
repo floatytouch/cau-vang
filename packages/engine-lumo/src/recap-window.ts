@@ -1,8 +1,5 @@
 import type { ConversationMessage } from '@noot/shared';
-import {
-  DEFAULT_LUMO_RECAP_BUDGETS,
-  type LumoRecapBudgets,
-} from './recap-budget.js';
+import { DEFAULT_LUMO_RECAP_BUDGETS, type LumoRecapBudgets } from './recap-budget.js';
 
 export interface LumoWireMessage {
   role: 'system' | 'user' | 'assistant';
