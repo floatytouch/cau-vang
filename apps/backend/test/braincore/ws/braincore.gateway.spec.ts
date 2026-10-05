@@ -10,9 +10,6 @@ import {
   DONE_REASON_CANCELLED,
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_TEXT_DELTA,
-  WS_AUTH_ERROR_CODE,
-  WS_AUTH_ERROR_EVENT,
-  WS_AUTH_TOKEN_KEY,
   WS_CANCEL_TURN_EVENT,
   WS_CHAT_SEND_EVENT,
   WS_LIST_ENGINES_EVENT,
@@ -31,7 +28,7 @@ import {
   MOCK_ENGINE_CAPABILITIES,
   MOCK_ENGINE_ID,
 } from '../../../src/braincore/testing/mock-engine-adapter.js';
-import { RawSocketIoClient } from '../../../src/braincore/testing/raw-socket-io-client.js';
+import { RawSocketIoClient } from '../../support/raw-socket-io-client.js';
 import { WS_UNAUTHORIZED_MESSAGE } from '../../../src/braincore/ws/ws-auth.js';
 
 const BLOCKING_ENGINE_ID = 'blocking-until-cancel';
@@ -77,7 +74,7 @@ const GATEWAY_WS_TOKEN = 'nv10-gateway-test-token';
 const LOGGER_METHODS = ['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const;
 
 async function connect(port: number, token: string): Promise<RawSocketIoClient> {
-  const client = RawSocketIoClient.open(port, { auth: { [WS_AUTH_TOKEN_KEY]: token } });
+  const client = RawSocketIoClient.open(port, { auth: { token } });
   await client.ready;
   return client;
 }
@@ -140,10 +137,10 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       .map((event) => (event.payload as { payload: NootEvent }).payload);
     expect(payloads.map((event) => [event.type, event.seq])).toEqual([
       ['progress', 0],
-      [NOOT_EVENT_TYPE_TEXT_DELTA, 1],
+      ['text_delta', 1],
       ['usage', 2],
       ['progress', 3],
-      [NOOT_EVENT_TYPE_DONE, 4],
+      ['done', 4],
     ]);
     expect(payloads[1]).toMatchObject({ sessionId: session.id, text: 'hi there' });
   });
@@ -239,8 +236,8 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     expect(await rejected.rejection()).toEqual({
       message: WS_UNAUTHORIZED_MESSAGE,
       data: {
-        type: WS_AUTH_ERROR_EVENT,
-        payload: { code: WS_AUTH_ERROR_CODE, message: WS_UNAUTHORIZED_MESSAGE },
+        type: 'auth_error',
+        payload: { code: 'unauthorized', message: WS_UNAUTHORIZED_MESSAGE },
         sentAt: expect.any(String),
       } satisfies WsAuthErrorMessage,
     });
@@ -252,7 +249,7 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     ['a same-length token', `${GATEWAY_WS_TOKEN.slice(0, -1)}X`],
   ])('rejects %s and logs the rejection without any token', async (_label, token) => {
     logSpies.forEach((spy) => spy.mockClear());
-    const rejected = RawSocketIoClient.open(port, { auth: { [WS_AUTH_TOKEN_KEY]: token } });
+    const rejected = RawSocketIoClient.open(port, { auth: { token } });
     expect(await rejected.rejection()).toMatchObject({ message: WS_UNAUTHORIZED_MESSAGE });
     rejected.close();
     const logged = loggedText();
@@ -263,7 +260,7 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
 
   it('rejects the correct token when it only arrives in the URL query', async () => {
     const rejected = RawSocketIoClient.open(port, {
-      query: { [WS_AUTH_TOKEN_KEY]: GATEWAY_WS_TOKEN },
+      query: { token: GATEWAY_WS_TOKEN },
     });
     expect(await rejected.rejection()).toMatchObject({ message: WS_UNAUTHORIZED_MESSAGE });
     rejected.close();

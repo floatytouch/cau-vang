@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { WS_AUTH_TOKEN_KEY } from '@noot/shared';
 import { handshakeTokenMatches, readHandshakeToken } from '../../../src/braincore/ws/ws-auth.js';
 
 function fakeSocket(handshake: {
@@ -11,21 +10,17 @@ function fakeSocket(handshake: {
 
 describe('ws-auth', () => {
   it('reads the token from handshake.auth', () => {
-    expect(readHandshakeToken(fakeSocket({ auth: { [WS_AUTH_TOKEN_KEY]: 'from-auth' } }))).toBe(
-      'from-auth',
-    );
+    expect(readHandshakeToken(fakeSocket({ auth: { token: 'from-auth' } }))).toBe('from-auth');
   });
 
   it('ignores a query string token so secrets never ride in URLs', () => {
-    const socket = fakeSocket({ auth: {}, query: { [WS_AUTH_TOKEN_KEY]: 'from-query' } });
+    const socket = fakeSocket({ auth: {}, query: { token: 'from-query' } });
     expect(readHandshakeToken(socket)).toBeUndefined();
   });
 
   it('ignores non-string or empty auth tokens', () => {
-    expect(readHandshakeToken(fakeSocket({ auth: { [WS_AUTH_TOKEN_KEY]: '' } }))).toBeUndefined();
-    expect(
-      readHandshakeToken(fakeSocket({ auth: { [WS_AUTH_TOKEN_KEY]: ['x'] } })),
-    ).toBeUndefined();
+    expect(readHandshakeToken(fakeSocket({ auth: { token: '' } }))).toBeUndefined();
+    expect(readHandshakeToken(fakeSocket({ auth: { token: ['x'] } }))).toBeUndefined();
   });
 
   it('accepts only the exact token', () => {

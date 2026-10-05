@@ -8,7 +8,7 @@ import { Test } from '@nestjs/testing';
 import { WS_SUBSCRIBE_SESSION_EVENT } from '@noot/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../../../src/app.module.js';
-import { RawSocketIoClient } from '../../../src/braincore/testing/raw-socket-io-client.js';
+import { RawSocketIoClient } from '../../support/raw-socket-io-client.js';
 
 const ENV_KEYS = [
   'NOOT_BRAINCORE_DATA_DIR',
