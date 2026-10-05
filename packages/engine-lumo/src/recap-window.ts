@@ -1,8 +1,7 @@
 import type { ConversationMessage } from '@noot/shared';
 import {
-  HISTORY_CHAR_BUDGET,
-  HISTORY_MESSAGE_CHARS,
-  HISTORY_MESSAGE_LIMIT,
+  DEFAULT_LUMO_RECAP_BUDGETS,
+  type LumoRecapBudgets,
 } from './recap-budget.js';
 
 export interface LumoWireMessage {
@@ -14,24 +13,28 @@ export function buildLumoChatMessages(
   systemPrompt: string,
   history: readonly ConversationMessage[],
   userText: string,
+  budgets: LumoRecapBudgets = DEFAULT_LUMO_RECAP_BUDGETS,
 ): LumoWireMessage[] {
   const messages: LumoWireMessage[] = [{ role: 'system', content: systemPrompt }];
-  messages.push(...historyWindow(history));
+  messages.push(...historyWindow(history, budgets));
   messages.push({ role: 'user', content: userText });
   return messages;
 }
 
-export function historyWindow(history: readonly ConversationMessage[]): LumoWireMessage[] {
+export function historyWindow(
+  history: readonly ConversationMessage[],
+  budgets: LumoRecapBudgets = DEFAULT_LUMO_RECAP_BUDGETS,
+): LumoWireMessage[] {
   const window: LumoWireMessage[] = [];
-  let budget = HISTORY_CHAR_BUDGET;
-  const slice = history.slice(-HISTORY_MESSAGE_LIMIT);
+  let budget = budgets.charBudget;
+  const slice = history.slice(-budgets.messageLimit);
 
   for (let index = slice.length - 1; index >= 0; index -= 1) {
     const message = slice[index];
     if (!message) {
       continue;
     }
-    const content = normalizeMessageText(message.text);
+    const content = normalizeMessageText(message.text, budgets.messageChars);
     if (!content) {
       continue;
     }
@@ -46,10 +49,10 @@ export function historyWindow(history: readonly ConversationMessage[]): LumoWire
   return window;
 }
 
-function normalizeMessageText(text: string): string {
+function normalizeMessageText(text: string, messageChars: number): string {
   const collapsed = text.split(/\s+/).filter(Boolean).join(' ');
-  if (collapsed.length <= HISTORY_MESSAGE_CHARS) {
+  if (collapsed.length <= messageChars) {
     return collapsed;
   }
-  return `${collapsed.slice(0, HISTORY_MESSAGE_CHARS - 3)}...`;
+  return `${collapsed.slice(0, messageChars - 3)}...`;
 }

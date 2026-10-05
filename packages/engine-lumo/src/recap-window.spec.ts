@@ -46,6 +46,20 @@ describe('historyWindow', () => {
     expect(window.at(-1)?.content.startsWith('m9-')).toBe(true);
   });
 
+  it('honours factory budget overrides instead of the package defaults', () => {
+    const budgets = { charBudget: 20, messageLimit: 10, messageChars: 50 };
+    const history = [
+      userMessage('aaaaaaaaaa'),
+      userMessage('bbbbbbbbbb'),
+      userMessage('cccccccccc'),
+    ];
+
+    const window = historyWindow(history, budgets);
+
+    expect(windowChars(window)).toBeLessThanOrEqual(budgets.charBudget);
+    expect(window.map((message) => message.content)).toEqual(['bbbbbbbbbb', 'cccccccccc']);
+  });
+
   it('drops everything older than the first message that overflows the budget', () => {
     const filler = 'y'.repeat(HISTORY_MESSAGE_CHARS);
     const fillerCount = Math.floor(HISTORY_CHAR_BUDGET / HISTORY_MESSAGE_CHARS) - 1;

@@ -8,13 +8,18 @@ export interface LumoClientConfig {
   apiKey: string;
 }
 
-export function readLumoClientConfig(env: NodeJS.ProcessEnv = process.env): LumoClientConfig {
+export interface LumoClientConfigInput {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+export function resolveLumoClientConfig(input: LumoClientConfigInput): LumoClientConfig {
   const baseUrl =
-    (env[LUMO_BASE_URL_ENV] ?? '').trim().replace(/\/+$/, '') || DEFAULT_LUMO_BASE_URL;
-  const apiKey = (env[LUMO_API_KEY_ENV] ?? '').trim();
+    (input.baseUrl ?? '').trim().replace(/\/+$/, '') || DEFAULT_LUMO_BASE_URL;
+  const apiKey = (input.apiKey ?? '').trim();
   if (!apiKey) {
     throw new LumoCredentialsError(
-      `set ${LUMO_API_KEY_ENV} to the lumo-tamer proxy API key before calling Lumo`,
+      `Lumo apiKey is required; pass createLumoAdapter({ apiKey }) (Nest resolves ${LUMO_API_KEY_ENV} via ConfigService)`,
     );
   }
   return { baseUrl, apiKey };

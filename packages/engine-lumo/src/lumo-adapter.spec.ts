@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { isBareApiEngine, isNootEvent } from '@noot/shared';
 import type { NootEvent, TurnOptions } from '@noot/shared';
 import { createLumoAdapter, LUMO_CAPABILITIES } from './lumo-adapter.js';
-import { LUMO_API_KEY_ENV } from './lumo-config.js';
 import { LumoProxyClient } from './lumo-proxy-client.js';
 
 const SESSION = { sessionId: 's1', history: [] };
@@ -100,21 +99,13 @@ describe('createLumoAdapter smoke through HTTP', () => {
 
 describe('createLumoAdapter failures', () => {
   it('reports a missing API key as one failed turn instead of throwing at creation', async () => {
-    const saved = process.env[LUMO_API_KEY_ENV];
-    delete process.env[LUMO_API_KEY_ENV];
-    try {
-      const adapter = createLumoAdapter();
-      const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
+    const adapter = createLumoAdapter({ apiKey: '   ' });
+    const events = await collect(adapter.startTurn(SESSION, { text: 'hi' }, OPTIONS));
 
-      expect(events.every(isNootEvent)).toBe(true);
-      expect(events.map((event) => event.type)).toEqual(['error', 'done']);
-      expect(events[0]).toMatchObject({ code: 'missing_credentials', recoverable: false });
-      expect(events[1]).toMatchObject({ reason: 'failed' });
-    } finally {
-      if (saved !== undefined) {
-        process.env[LUMO_API_KEY_ENV] = saved;
-      }
-    }
+    expect(events.every(isNootEvent)).toBe(true);
+    expect(events.map((event) => event.type)).toEqual(['error', 'done']);
+    expect(events[0]).toMatchObject({ code: 'missing_credentials', recoverable: false });
+    expect(events[1]).toMatchObject({ reason: 'failed' });
   });
 
   it('reports a proxy that refuses connections as engine_unavailable', async () => {

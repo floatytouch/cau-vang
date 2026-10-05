@@ -8,10 +8,14 @@ import type {
 } from '@noot/shared';
 import {
   LumoCredentialsError,
-  readLumoClientConfig,
-  type LumoClientConfig,
+  resolveLumoClientConfig,
+  type LumoClientConfigInput,
 } from './lumo-config.js';
 import { LumoApiError, LumoProxyClient } from './lumo-proxy-client.js';
+import {
+  resolveLumoRecapBudgets,
+  type LumoRecapBudgets,
+} from './recap-budget.js';
 import { buildLumoChatMessages } from './recap-window.js';
 
 export const LUMO_ENGINE_ID = 'lumo';
@@ -23,18 +27,24 @@ export const LUMO_CAPABILITIES: EngineCapabilities = {
   choices: false,
 };
 
-export interface LumoAdapterOptions {
-  config?: LumoClientConfig;
+export interface LumoAdapterOptions extends LumoClientConfigInput {
+  budgets?: Partial<LumoRecapBudgets>;
   client?: LumoProxyClient;
+  requestTimeoutMs?: number;
 }
 
 export function createLumoAdapter(options: LumoAdapterOptions = {}): EngineAdapter {
-  const { client, config } = options;
+  const { client, apiKey, baseUrl, budgets, requestTimeoutMs } = options;
+  const recapBudgets = resolveLumoRecapBudgets(budgets);
   // Resolved per turn so a missing key fails that turn, not the process that registers engines.
   const resolveClient = client
     ? () => client
-    : () => new LumoProxyClient({ config: config ?? readLumoClientConfig() });
-  return new LumoEngineAdapter(resolveClient);
+    : () =>
+        new LumoProxyClient({
+          config: resolveLumoClientConfig({ apiKey, baseUrl }),
+          requestTimeoutMs,
+        });
+  return new LumoEngineAdapter(resolveClient, recapBudgets);
 }
 
 class LumoEngineAdapter implements EngineAdapter {
@@ -42,10 +52,12 @@ class LumoEngineAdapter implements EngineAdapter {
   readonly capabilities = LUMO_CAPABILITIES;
 
   private readonly resolveClient: () => LumoProxyClient;
+  private readonly budgets: LumoRecapBudgets;
   private readonly abortByTurn = new Map<string, AbortController>();
 
-  constructor(resolveClient: () => LumoProxyClient) {
+  constructor(resolveClient: () => LumoProxyClient, budgets: LumoRecapBudgets) {
     this.resolveClient = resolveClient;
+    this.budgets = budgets;
   }
 
   async *startTurn(
@@ -69,7 +81,12 @@ class LumoEngineAdapter implements EngineAdapter {
     };
 
     try {
-      const messages = buildLumoChatMessages(options.systemPrompt, session.history, input.text);
+      const messages = buildLumoChatMessages(
+        options.systemPrompt,
+        session.history,
+        input.text,
+        this.budgets,
+      );
       const client = this.resolveClient();
       const result = await client.complete(options.model, messages, abort.signal);
 
