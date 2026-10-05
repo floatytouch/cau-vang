@@ -1,0 +1,17 @@
+import { buildWsAuth, WS_AUTH_TOKEN_KEY } from '@noot/shared';
+import { describe, expect, it } from 'vitest';
+import { frontendWsAuth, readFrontendWsToken } from './wsAuth.js';
+
+describe('frontend WS auth helpers', () => {
+  it('reads a trimmed VITE_NOOT_WS_TOKEN', () => {
+    expect(readFrontendWsToken({ VITE_NOOT_WS_TOKEN: '  secret  ' })).toBe('secret');
+    expect(readFrontendWsToken({})).toBeUndefined();
+  });
+
+  it('builds the shared auth object when a token is present', () => {
+    expect(frontendWsAuth({ VITE_NOOT_WS_TOKEN: 'secret' })).toEqual(buildWsAuth('secret'));
+    expect(frontendWsAuth({ VITE_NOOT_WS_TOKEN: 'secret' })).toEqual({
+      [WS_AUTH_TOKEN_KEY]: 'secret',
+    });
+  });
+});

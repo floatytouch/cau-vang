@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
   MessageBody,
@@ -7,6 +9,8 @@ import {
   type OnGatewayInit,
 } from '@nestjs/websockets';
 import {
+  WS_AUTH_ERROR_CODE,
+  WS_AUTH_ERROR_EVENT,
   WS_CANCEL_TURN_EVENT,
   WS_CHAT_SEND_EVENT,
   WS_CREATE_SESSION_EVENT,
@@ -28,11 +32,14 @@ import {
   type ModeAck,
   type NootEvent,
   type SetEngineAck,
+  type WsAuthErrorMessage,
   type WsNootEventMessage,
 } from '@noot/shared';
 import type { Server, Socket } from 'socket.io';
+import type { AppConfig } from '../../config/app-config.js';
 import { BRAINCORE_EVENT_CHANNEL, BraincoreService } from '../braincore.service.js';
 import type { WorkMode } from '../mode/work-mode.js';
+import { handshakeTokenMatches, readHandshakeToken, WS_UNAUTHORIZED_MESSAGE } from './ws-auth.js';
 
 export interface GatewayAck {
   ok: boolean;
@@ -42,12 +49,20 @@ export interface GatewayAck {
 
 @WebSocketGateway()
 export class BraincoreGateway implements OnGatewayInit {
+  private readonly logger = new Logger(BraincoreGateway.name);
+
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly braincore: BraincoreService) {}
+  constructor(
+    private readonly braincore: BraincoreService,
+    private readonly config: ConfigService<AppConfig, true>,
+  ) {}
 
   afterInit(): void {
+    this.server.use((socket, next) => {
+      this.enforceHandshakeAuth(socket, next);
+    });
     this.braincore.on(BRAINCORE_EVENT_CHANNEL, (event: NootEvent) => {
       const message: WsNootEventMessage = {
         type: WS_NOOT_EVENT,
@@ -63,6 +78,9 @@ export class BraincoreGateway implements OnGatewayInit {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: unknown,
   ): Promise<FunnelAck> {
+    if (!this.clientMayProceed(client)) {
+      return { ok: false, error: WS_UNAUTHORIZED_MESSAGE };
+    }
     const sessionId = readString(body, 'sessionId');
     if (!sessionId || !this.braincore.sessions.hasSession(sessionId)) {
       return { ok: false, error: 'unknown sessionId' };
@@ -72,7 +90,13 @@ export class BraincoreGateway implements OnGatewayInit {
   }
 
   @SubscribeMessage(WS_CHAT_SEND_EVENT)
-  async handleChatSend(@MessageBody() body: unknown): Promise<ChatSendAck> {
+  async handleChatSend(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: unknown,
+  ): Promise<ChatSendAck> {
+    if (!this.clientMayProceed(client)) {
+      return { ok: false, error: WS_UNAUTHORIZED_MESSAGE };
+    }
     const sessionId = readString(body, 'sessionId');
     const text = readString(body, 'text');
     if (!sessionId || !text?.trim()) {
@@ -220,6 +244,39 @@ export class BraincoreGateway implements OnGatewayInit {
     } catch (error) {
       return { ok: false, error: errorMessage(error) };
     }
+  }
+
+  private enforceHandshakeAuth(socket: Socket, next: (error?: Error) => void): void {
+    const expected = this.config.get('wsToken', { infer: true });
+    if (!expected) {
+      socket.data.wsAuthenticated = true;
+      next();
+      return;
+    }
+    if (!handshakeTokenMatches(readHandshakeToken(socket), expected)) {
+      this.logger.warn('websocket handshake rejected: token missing or incorrect');
+      const envelope: WsAuthErrorMessage = {
+        type: WS_AUTH_ERROR_EVENT,
+        payload: { code: WS_AUTH_ERROR_CODE, message: WS_UNAUTHORIZED_MESSAGE },
+        sentAt: new Date().toISOString(),
+      };
+      const error = new Error(WS_UNAUTHORIZED_MESSAGE) as Error & {
+        data: WsAuthErrorMessage;
+      };
+      error.data = envelope;
+      next(error);
+      return;
+    }
+    socket.data.wsAuthenticated = true;
+    next();
+  }
+
+  private clientMayProceed(client: Socket): boolean {
+    if (client.data.wsAuthenticated === true) {
+      return true;
+    }
+    const expected = this.config.get('wsToken', { infer: true });
+    return expected === undefined;
   }
 }
 

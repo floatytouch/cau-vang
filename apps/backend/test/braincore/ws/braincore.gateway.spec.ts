@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { mkdtemp, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import os from 'node:os';
@@ -9,6 +10,9 @@ import {
   DONE_REASON_CANCELLED,
   NOOT_EVENT_TYPE_DONE,
   NOOT_EVENT_TYPE_TEXT_DELTA,
+  WS_AUTH_ERROR_CODE,
+  WS_AUTH_ERROR_EVENT,
+  WS_AUTH_TOKEN_KEY,
   WS_CANCEL_TURN_EVENT,
   WS_CHAT_SEND_EVENT,
   WS_LIST_ENGINES_EVENT,
@@ -17,8 +21,9 @@ import {
   WS_SUBSCRIBE_SESSION_EVENT,
   type EngineAdapter,
   type NootEvent,
+  type WsAuthErrorMessage,
 } from '@noot/shared';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../../../src/app.module.js';
 import { DEFAULT_MAX_CHAT_TEXT_LENGTH } from '../../../src/config/app-config.js';
 import { BraincoreService } from '../../../src/braincore/braincore.service.js';
@@ -26,6 +31,7 @@ import {
   MOCK_ENGINE_CAPABILITIES,
   MOCK_ENGINE_ID,
 } from '../../../src/braincore/testing/mock-engine-adapter.js';
+import { WS_UNAUTHORIZED_MESSAGE } from '../../../src/braincore/ws/ws-auth.js';
 
 const BLOCKING_ENGINE_ID = 'blocking-until-cancel';
 
@@ -60,7 +66,13 @@ function createBlockingAdapter(): EngineAdapter {
   };
 }
 
-const ENV_KEYS = ['NOOT_BRAINCORE_DATA_DIR', 'NOOT_BRAINCORE_MOCK_ENGINES'] as const;
+const ENV_KEYS = [
+  'NOOT_BRAINCORE_DATA_DIR',
+  'NOOT_BRAINCORE_MOCK_ENGINES',
+  'NOOT_WS_TOKEN',
+] as const;
+
+const GATEWAY_WS_TOKEN = 'nv10-gateway-test-token';
 
 /** Minimal Socket.IO v5 client over the built-in WebSocket: connect, emit-with-ack, collect events. */
 class RawSocketIoClient {
@@ -68,15 +80,37 @@ class RawSocketIoClient {
   private readonly acks = new Map<number, (value: unknown) => void>();
   readonly events: { name: string; payload: unknown }[] = [];
   private connected!: () => void;
-  readonly ready = new Promise<void>((resolve) => (this.connected = resolve));
+  private failed!: (error: unknown) => void;
+  readonly ready: Promise<void>;
+  connectError: unknown;
 
   constructor(private readonly socket: WebSocket) {
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.connected = resolve;
+      this.failed = reject;
+    });
     socket.addEventListener('message', (message) => this.onFrame(String(message.data)));
+    socket.addEventListener('close', () => {
+      if (this.connectError === undefined) {
+        this.failed(new Error('socket closed before namespace connect'));
+      }
+    });
   }
 
-  static async connect(port: number): Promise<RawSocketIoClient> {
-    const socket = new WebSocket(`ws://127.0.0.1:${port}/socket.io/?EIO=4&transport=websocket`);
+  static async connect(
+    port: number,
+    options: { token?: string; expectAuthFailure?: boolean } = {},
+  ): Promise<RawSocketIoClient> {
+    const params = new URLSearchParams({ EIO: '4', transport: 'websocket' });
+    if (options.token !== undefined) {
+      params.set(WS_AUTH_TOKEN_KEY, options.token);
+    }
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/socket.io/?${params}`);
     const client = new RawSocketIoClient(socket);
+    if (options.expectAuthFailure) {
+      await expect(client.ready).rejects.toBeTruthy();
+      return client;
+    }
     await client.ready;
     return client;
   }
@@ -98,6 +132,10 @@ class RawSocketIoClient {
       this.socket.send('3');
     } else if (frame.startsWith('40')) {
       this.connected();
+    } else if (frame.startsWith('44')) {
+      const payload = JSON.parse(frame.slice(2)) as unknown;
+      this.connectError = payload;
+      this.failed(payload);
     } else if (frame.startsWith('43')) {
       const match = /^43(\d+)(.*)$/s.exec(frame);
       const [payload] = JSON.parse(match![2]!) as unknown[];
@@ -112,8 +150,10 @@ class RawSocketIoClient {
 describe('BraincoreGateway over a real Socket.IO connection', () => {
   let app: INestApplication;
   let dataDir: string;
+  let port: number;
   let client: RawSocketIoClient;
   const savedEnv = new Map<string, string | undefined>();
+  const warnSpy = vi.spyOn(Logger.prototype, 'warn');
 
   beforeAll(async () => {
     dataDir = await mkdtemp(path.join(os.tmpdir(), 'noot-gateway-'));
@@ -122,16 +162,18 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     }
     process.env.NOOT_BRAINCORE_DATA_DIR = dataDir;
     process.env.NOOT_BRAINCORE_MOCK_ENGINES = '1';
+    process.env.NOOT_WS_TOKEN = GATEWAY_WS_TOKEN;
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     await app.listen(0, '127.0.0.1');
-    const { port } = app.getHttpServer().address() as AddressInfo;
-    client = await RawSocketIoClient.connect(port);
+    port = (app.getHttpServer().address() as AddressInfo).port;
+    client = await RawSocketIoClient.connect(port, { token: GATEWAY_WS_TOKEN });
   });
 
   afterAll(async () => {
     client?.close();
     await app?.close();
+    warnSpy.mockRestore();
     for (const [key, value] of savedEnv) {
       if (value === undefined) {
         delete process.env[key];
@@ -254,6 +296,35 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
     expect(await client.emit(WS_CANCEL_TURN_EVENT, { sessionId: session.id })).toEqual({
       ok: true,
     });
+  });
+
+  it('rejects a connect with no token before any chat handler runs', async () => {
+    warnSpy.mockClear();
+    const rejected = await RawSocketIoClient.connect(port, { expectAuthFailure: true });
+    expect(rejected.connectError).toEqual({
+      message: WS_UNAUTHORIZED_MESSAGE,
+      data: {
+        type: WS_AUTH_ERROR_EVENT,
+        payload: { code: WS_AUTH_ERROR_CODE, message: WS_UNAUTHORIZED_MESSAGE },
+        sentAt: expect.any(String),
+      } satisfies WsAuthErrorMessage,
+    });
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(GATEWAY_WS_TOKEN);
+    rejected.close();
+  });
+
+  it('rejects a connect with the wrong token and never logs the secret', async () => {
+    const wrongToken = `${GATEWAY_WS_TOKEN}-wrong`;
+    warnSpy.mockClear();
+    const rejected = await RawSocketIoClient.connect(port, {
+      token: wrongToken,
+      expectAuthFailure: true,
+    });
+    expect(rejected.connectError).toMatchObject({ message: WS_UNAUTHORIZED_MESSAGE });
+    const logged = JSON.stringify(warnSpy.mock.calls);
+    expect(logged).not.toContain(GATEWAY_WS_TOKEN);
+    expect(logged).not.toContain(wrongToken);
+    rejected.close();
   });
 });
 
