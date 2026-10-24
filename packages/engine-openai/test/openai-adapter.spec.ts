@@ -34,6 +34,9 @@ describe('createOpenAiAdapter', () => {
     expect(events.some((e) => e.type === NOOT_EVENT_TYPE_TEXT_DELTA && e.text === 'hello')).toBe(
       true,
     );
-    expect(events.at(-1)).toMatchObject({ type: NOOT_EVENT_TYPE_DONE, reason: DONE_REASON_COMPLETED });
+    expect(events.at(-1)).toMatchObject({
+      type: NOOT_EVENT_TYPE_DONE,
+      reason: DONE_REASON_COMPLETED,
+    });
   });
 });
