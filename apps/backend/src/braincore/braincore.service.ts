@@ -36,6 +36,7 @@ import {
   type StoredMessage,
   type StoredSession,
 } from './session/session-types.js';
+import { createOfflineRulesAdapter } from '@noot/engine-offline';
 import {
   createMockBareApiAdapter,
   createMockHarnessAdapter,
@@ -83,6 +84,7 @@ export class BraincoreService extends EventEmitter {
     if (resolved.registerMocks ?? false) {
       this.engines.register(createMockBareApiAdapter());
       this.engines.register(createMockHarnessAdapter());
+      this.engines.register(createOfflineRulesAdapter());
     }
   }
 
