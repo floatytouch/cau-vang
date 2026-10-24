@@ -923,6 +923,7 @@ __metadata:
     "@nestjs/platform-socket.io": "npm:12.1.2"
     "@nestjs/testing": "npm:12.1.2"
     "@nestjs/websockets": "npm:12.1.2"
+    "@noot/engine-offline": "workspace:*"
     "@noot/shared": "workspace:*"
     "@types/express": "npm:5.0.6"
     "@types/node": "npm:24.19.1"
@@ -969,6 +970,18 @@ __metadata:
 "@noot/engine-lumo@workspace:packages/engine-lumo":
   version: 0.0.0-use.local
   resolution: "@noot/engine-lumo@workspace:packages/engine-lumo"
+  dependencies:
+    "@noot/shared": "workspace:*"
+    "@types/node": "npm:24.19.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.3.2"
+    vitest: "npm:5.0.3"
+  languageName: unknown
+  linkType: soft
+
+"@noot/engine-offline@workspace:*, @noot/engine-offline@workspace:packages/engine-offline":
+  version: 0.0.0-use.local
+  resolution: "@noot/engine-offline@workspace:packages/engine-offline"
   dependencies:
     "@noot/shared": "workspace:*"
     "@types/node": "npm:24.19.1"

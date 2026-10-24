@@ -1,4 +1,4 @@
-import { MOCK_ENGINE_ID, MOCK_HARNESS_ENGINE_ID } from '@noot/shared';
+import { MOCK_ENGINE_ID, MOCK_HARNESS_ENGINE_ID, OFFLINE_RULES_ENGINE_ID } from '@noot/shared';
 
 export const CLAUDE_ENGINE_ID = 'claude';
 export const CURSOR_ENGINE_ID = 'cursor';
@@ -9,6 +9,7 @@ export const FALLBACK_MODEL_ID = 'default';
 export const ENGINE_MODEL_CATALOG: Readonly<Record<string, readonly string[]>> = {
   [MOCK_ENGINE_ID]: ['mock-model'],
   [MOCK_HARNESS_ENGINE_ID]: ['mock-harness-model'],
+  [OFFLINE_RULES_ENGINE_ID]: ['rules'],
   [CLAUDE_ENGINE_ID]: ['claude-sonnet-4-5', 'claude-opus-4-5'],
   [CURSOR_ENGINE_ID]: ['composer-2.5'],
   [LUMO_ENGINE_ID]: ['lumo-lite'],

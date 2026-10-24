@@ -168,7 +168,11 @@ describe('BraincoreGateway over a real Socket.IO connection', () => {
       engines: { id: string }[];
     };
     expect(enginesAck.ok).toBe(true);
-    expect(enginesAck.engines.map((engine) => engine.id).sort()).toEqual(['mock', 'mock-harness']);
+    expect(enginesAck.engines.map((engine) => engine.id).sort()).toEqual([
+      'mock',
+      'mock-harness',
+      'offline-rules',
+    ]);
 
     const session = await app.get(BraincoreService).createSession(MOCK_ENGINE_ID, 'mock-model');
     expect(await client.emit(WS_SET_MODE_EVENT, { sessionId: session.id, mode: 'plan' })).toEqual({
